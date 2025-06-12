@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import useDeviceType from "../hooks/useDeviceType";
 
 const getColumnLabel = (index: number): string => {
   let label = "";
@@ -33,6 +34,9 @@ export default function Spreadsheet() {
   const [tempHeader, setTempHeader] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null);
 
+
+  const deviceType = useDeviceType();
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -40,6 +44,7 @@ export default function Spreadsheet() {
         setContextMenu(null);
       }
     };
+
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") setContextMenu(null);
     };
@@ -119,6 +124,7 @@ export default function Spreadsheet() {
     setColumnHeaders((prev) => prev.filter((_, i) => i !== index));
   };
 
+
   return (
     <div className="p-6 space-y-4 relative">
       <div className="flex flex-wrap gap-2">
@@ -167,23 +173,23 @@ export default function Spreadsheet() {
                   {rowIndex + 1}
                 </td>
                 {row.map((cell, colIndex) => (
-                  <td key={colIndex} className="border border-gray-300 px-3 py-2 relative group">
+                  <td key={colIndex} className="border border-gray-300 px-3 py-2 relative group min-w-[100px]">
                     <button
-                      className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-500 hover:text-gray-800"
+                      className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
                       onClick={(e) => {
                         e.stopPropagation();
                         setContextMenu({
                           row: rowIndex,
                           col: colIndex,
-                          x: e.currentTarget.getBoundingClientRect().left,
-                          y: e.currentTarget.getBoundingClientRect().bottom + window.scrollY,
+                          x: deviceType.mobile ? e.currentTarget.getBoundingClientRect().left - 190 : deviceType.tab ? e.currentTarget.getBoundingClientRect().left - 360 : e.currentTarget.getBoundingClientRect().left - 260,
+                          y: deviceType.mobile ? e.currentTarget.getBoundingClientRect().bottom + window.scrollY - 150 : e.currentTarget.getBoundingClientRect().bottom + window.scrollY - 150,
                         });
                       }}
                     >
                       ⋮
                     </button>
 
-                    <div onClick={() => handleCellClick(rowIndex, colIndex)} className="min-h-[20px]">
+                    <div onClick={() => handleCellClick(rowIndex, colIndex)} className="min-h-[20px] ">
                       {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
                         <input
                           type="text"
