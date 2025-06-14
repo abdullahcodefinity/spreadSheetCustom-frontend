@@ -50,17 +50,21 @@ export default function SheetList() {
   const handleSave = async (id: number) => {
     try {
       setError(null);
-      await axios.patch(`http://localhost:8000/api/sheets/${id}`, {
+      // Make API call to update sheet name
+      await axios.put(`http://localhost:8000/api/sheets/${id}`, {
         name: editName
       });
-      
-      setSheets(sheets.map(sheet => 
+
+      // Update local state after successful API call
+      setSheets(sheets.map(sheet =>
         sheet.id === id ? { ...sheet, name: editName } : sheet
       ));
       setEditingId(null);
     } catch (err) {
       setError('Failed to update sheet name');
       console.error('Error updating sheet:', err);
+      // Revert the edit name if the API call fails
+      setEditName(sheets.find(sheet => sheet.id === id)?.name || '');
     }
   };
 
@@ -84,7 +88,7 @@ export default function SheetList() {
           columns: [],
           sheetData: []
         });
-        
+
         setSheets([...sheets, response.data]);
         setNewSheetName("");
         setIsAddingNew(false);
@@ -191,8 +195,8 @@ export default function SheetList() {
               </div>
             ) : (
               <>
-                <Link 
-                  className="flex-1 block p-4" 
+                <Link
+                  className="flex-1 block p-4"
                   href={`/sheet/${sheet.id}`}
                 >
                   <div className="flex flex-col">
@@ -202,7 +206,7 @@ export default function SheetList() {
                       {sheet?.columns?.length > 0 && (
                         <div className="mt-1 flex flex-wrap gap-1">
                           {sheet.columns.map((column, index) => (
-                            <span 
+                            <span
                               key={index}
                               className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
                             >
