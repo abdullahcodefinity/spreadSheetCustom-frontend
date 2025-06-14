@@ -14,9 +14,7 @@ export default function Header() {
           <button className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 w-full sm:w-auto text-left sm:text-center">
             Settings
           </button>
-          <button className="px-4 py-2 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 w-full sm:w-auto">
-            New Sheet
-          </button>
+
         </div>
       </div>
     </header>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import useDeviceType from "../hooks/useDeviceType";
+import axios from "axios";
+import { useParams } from "next/navigation";
 
 const getColumnLabel = (index: number): string => {
   let label = "";
@@ -19,23 +21,119 @@ type ContextMenuTarget = {
   y: number;
 };
 
-export default function Spreadsheet() {
-  const [data, setData] = useState<string[][]>(
-    Array.from({ length: 10 }, () => Array(8).fill(""))
-  );
+// Type definitions for your backend data
+type BackendSheetData = {
+  id: number;
+  spreadsheetId: number;
+  position: number;
+  data: { [key: string]: string };
+  createdAt: string;
+  updatedAt: string;
+};
 
-  const [columnHeaders, setColumnHeaders] = useState<string[]>(
-    Array.from({ length: 8 }, (_, i) => getColumnLabel(i))
-  );
+type BackendSpreadsheetData = {
+  id: number;
+  name: string;
+  columns: string[];
+  createdAt: string;
+  updatedAt: string;
+  sheetData: BackendSheetData[];
+};
+
+interface SpreadsheetProps {
+  backendData?: BackendSpreadsheetData;
+}
+
+
+
+
+export default function Spreadsheet({ backendData }: SpreadsheetProps) {
+
+  const [data, setData] = useState<string[][]>([]);
+  const [columnHeaders, setColumnHeaders] = useState<string[]>([]);
+  const [spreadsheetName, setSpreadsheetName] = useState<string>("");
 
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
   const [tempValue, setTempValue] = useState("");
   const [editingHeader, setEditingHeader] = useState<number | null>(null);
   const [tempHeader, setTempHeader] = useState("");
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+
+  const params = useParams();
+  const sheetId = params?.id; // This will get the ID from the URL if it exists
+  
+
 
 
   const deviceType = useDeviceType();
+
+
+  const fetchSpreadsheetData = async (id: number) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await axios.get(`http://localhost:8000/api/sheets/${id}`);
+      console.log(response.data,'LLL')
+      const { headers, rows } = convertBackendDataToSpreadsheet(response.data);
+      setColumnHeaders(headers);
+      setData(rows);
+      setSpreadsheetName(response.data.name);
+    } catch (err) {
+      setError('Failed to fetch spreadsheet data');
+      console.error('Error fetching spreadsheet:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (sheetId) {
+      fetchSpreadsheetData(Number(sheetId));
+    }
+  }, [sheetId]);
+
+
+
+  // Function to convert backend data to spreadsheet format
+  const convertBackendDataToSpreadsheet = (backendData: BackendSpreadsheetData) => {
+    const headers = backendData.columns;
+    const rows: string[][] = [];
+
+    // Convert sheetData to rows
+    backendData.sheetData.forEach((item) => {
+      const row: string[] = [];
+      headers.forEach((header) => {
+        // Get value from data object, or empty string if not found
+        row.push(item.data[header] || "");
+      });
+      rows.push(row);
+    });
+
+    // If no data, create empty rows
+    if (rows.length === 0) {
+      rows.push(Array(headers.length).fill(""));
+    }
+
+    return { headers, rows };
+  };
+
+  // Initialize data from backend or default
+  // useEffect(() => {
+  //   if (backendData) {
+  //     const { headers, rows } = convertBackendDataToSpreadsheet(backendData);
+  //     setColumnHeaders(headers);
+  //     setData(rows);
+  //     setSpreadsheetName(backendData.name);
+  //   } else {
+  //     // Default initialization
+  //     setData(Array.from({ length: 10 }, () => Array(8).fill("")));
+  //     setColumnHeaders(Array.from({ length: 8 }, (_, i) => getColumnLabel(i)));
+  //     setSpreadsheetName("Untitled Spreadsheet");
+  //   }
+  // }, [backendData]);
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -62,10 +160,15 @@ export default function Spreadsheet() {
   };
 
   const saveCell = (row: number, col: number) => {
+    console.log({ row, col, tempValue }, 'LLL');
     const updated = [...data];
     updated[row][col] = tempValue;
+
     setData(updated);
     setEditingCell(null);
+
+    // Here you can add logic to sync with backend
+    // syncWithBackend(updated, row, col);
   };
 
   const handleHeaderClick = (colIndex: number) => {
@@ -73,11 +176,21 @@ export default function Spreadsheet() {
     setTempHeader(columnHeaders[colIndex]);
   };
 
-  const saveHeader = (colIndex: number) => {
+  const saveHeader = async (colIndex: number) => {
     const updated = [...columnHeaders];
     updated[colIndex] = tempHeader;
-    setColumnHeaders(updated);
-    setEditingHeader(null);
+    
+    try {
+ 
+      setColumnHeaders(updated);
+      setEditingHeader(null);
+      
+  
+      await updateColumns(updated);
+    } catch (err) {
+     
+      console.error('Error saving header:', err);
+    }
   };
 
   const exportCSV = () => {
@@ -97,11 +210,13 @@ export default function Spreadsheet() {
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.setAttribute("download", "spreadsheet.csv");
+    link.setAttribute("download", `${spreadsheetName.replace(/\s+/g, '_')}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
+
+
 
   const insertRowBelow = (index: number) => {
     const newRow = Array(data[0].length).fill("");
@@ -113,27 +228,119 @@ export default function Spreadsheet() {
     setData((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const insertColRight = (index: number) => {
-    setData((prev) => prev.map((row) => [...row.slice(0, index + 1), "", ...row.slice(index + 1)]));
-    setColumnHeaders((prev) => [...prev.slice(0, index + 1), "", ...prev.slice(index + 1)]);
+  const insertColRight = async (index: number) => {
+    // Get the next column label based on the current number of columns
+    const newColumnLabel = getColumnLabel(columnHeaders.length);
+    
+    const newColumnHeaders = [...columnHeaders.slice(0, index + 1), newColumnLabel, ...columnHeaders.slice(index + 1)];
+    const newData = data.map((row) => [...row.slice(0, index + 1), "", ...row.slice(index + 1)]);
+    
+    try {
+      // Update the state optimistically
+      setData(newData);
+      setColumnHeaders(newColumnHeaders);
+      
+      // Make the API call
+      await updateColumns(newColumnHeaders);
+    } catch (err) {
+      // If the API call fails, revert the changes
+      setData(data);
+      setColumnHeaders(columnHeaders);
+      console.error('Error inserting column:', err);
+    }
   };
 
-  const deleteCol = (index: number) => {
+
+
+
+   const deleteCol = async (index: number) => {
     if (data[0].length <= 1) return;
-    setData((prev) => prev.map((row) => row.filter((_, i) => i !== index)));
-    setColumnHeaders((prev) => prev.filter((_, i) => i !== index));
+    
+    const newColumnHeaders = columnHeaders.filter((_, i) => i !== index);
+    const newData = data.map((row) => row.filter((_, i) => i !== index));
+    
+    try {
+      // Update the state optimistically
+      setData(newData);
+      setColumnHeaders(newColumnHeaders);
+      
+      // Make the API call
+      await updateColumns(newColumnHeaders);
+    } catch (err) {
+      // If the API call fails, revert the changes
+      setData(data);
+      setColumnHeaders(columnHeaders);
+      console.error('Error deleting column:', err);
+    }
   };
 
+  
+
+  // Function to convert current spreadsheet data back to backend format
+  const convertToBackendFormat = (): BackendSpreadsheetData => {
+    const sheetData: BackendSheetData[] = data.map((row, index) => {
+      const dataObj: { [key: string]: string } = {};
+      columnHeaders.forEach((header, colIndex) => {
+        dataObj[header] = row[colIndex] || "";
+      });
+
+      return {
+        id: index + 1,
+        spreadsheetId: backendData?.id || 1,
+        position: index,
+        data: dataObj,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+
+    return {
+      id: backendData?.id || 1,
+      name: spreadsheetName,
+      columns: columnHeaders,
+      createdAt: backendData?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      sheetData: sheetData,
+    };
+  };
+
+
+
+ const updateColumns = async (newColumns: string[]) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await axios.put(`http://localhost:8000/api/sheets/${sheetId}/columns`, {
+        columns: newColumns
+      });
+    } catch (err) {
+      setError('Failed to update columns');
+      console.error('Error updating columns:', err);
+      // Revert the changes if the API call fails
+      setColumnHeaders(columnHeaders);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-4 relative">
-      <div className="flex flex-wrap gap-2">
-        <button
-          onClick={exportCSV}
-          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-        >
-          Export CSV
-        </button>
+      <div className="flex justify-between items-center">
+        {/* <h2 className="text-xl font-semibold text-gray-800">{spreadsheetName}</h2> */}
+        <div className="flex flex-wrap gap-2">
+          {/* <button
+            onClick={saveToBackend}
+            className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+          >
+            Save to Backend
+          </button> */}
+          <button
+            onClick={exportCSV}
+            className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+          >
+            Export CSV
+          </button>
+        </div>
       </div>
 
       <div className="overflow-auto">
@@ -147,20 +354,24 @@ export default function Spreadsheet() {
                   onClick={() => handleHeaderClick(colIndex)}
                   className="border border-gray-300 px-3 py-2 text-center cursor-pointer"
                 >
-                  {editingHeader === colIndex ? (
-                    <input
-                      value={tempHeader}
-                      autoFocus
-                      onChange={(e) => setTempHeader(e.target.value)}
-                      onBlur={() => saveHeader(colIndex)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveHeader(colIndex);
-                        if (e.key === "Escape") setEditingHeader(null);
-                      }}
-                      className="w-full px-1 py-0.5 border rounded outline-none"
-                    />
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
                   ) : (
-                    header || getColumnLabel(colIndex)
+                    editingHeader === colIndex ? (
+                      <input
+                        value={tempHeader}
+                        autoFocus
+                        onChange={(e) => setTempHeader(e.target.value)}
+                        onBlur={() => saveHeader(colIndex)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveHeader(colIndex);
+                          if (e.key === "Escape") setEditingHeader(null);
+                        }}
+                        className="w-full px-1 py-0.5 border rounded outline-none"
+                      />
+                    ) : (
+                      header || getColumnLabel(colIndex)
+                    )
                   )}
                 </th>
               ))}
@@ -181,8 +392,8 @@ export default function Spreadsheet() {
                         setContextMenu({
                           row: rowIndex,
                           col: colIndex,
-                          x: deviceType.mobile ? e.currentTarget.getBoundingClientRect().left - 190 : deviceType.tab ? e.currentTarget.getBoundingClientRect().left - 360 : e.currentTarget.getBoundingClientRect().left - 260,
-                          y: deviceType.mobile ? e.currentTarget.getBoundingClientRect().bottom + window.scrollY - 150 : e.currentTarget.getBoundingClientRect().bottom + window.scrollY - 150,
+                          x: deviceType.mobile ? e.currentTarget.getBoundingClientRect().left - 190 : deviceType.tab ? e.currentTarget.getBoundingClientRect().left - 360 : e.currentTarget.getBoundingClientRect().left - 430,
+                          y: deviceType.mobile ? e.currentTarget.getBoundingClientRect().bottom + window.scrollY - 150 : e.currentTarget.getBoundingClientRect().bottom + window.scrollY - 165,
                         });
                       }}
                     >
