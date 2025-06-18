@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import axios from 'axios';
+import api from '@/app/utils/api';
+import useToast from '@/app/hooks/useToast';
 
 interface Sheet {
   id: number;
@@ -15,22 +16,35 @@ interface Sheet {
 
 export default function SheetList() {
   const [sheets, setSheets] = useState<Sheet[]>([]);
+  const [filteredSheets, setFilteredSheets] = useState<Sheet[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [newSheetName, setNewSheetName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { successToast, errorToast } = useToast();
 
   // Fetch sheets from backend
   const fetchSheets = async () => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:8000/api/sheets/');
+      const response = await api.get('/sheets/');
+      
+      // Check if response contains an error
+      if (response.data?.error) {
+        throw new Error(response.data.message);
+      }
+
       setSheets(response.data);
-    } catch (err) {
-      setError('Failed to fetch sheets');
+      setFilteredSheets(response.data);
+    } catch (err: any) {
+      // Handle specific error message from backend
+      const errorMessage = err?.response?.data?.message || err.message || 'Failed to fetch sheets';
+      setError(errorMessage);
+      errorToast(errorMessage);
       console.error('Error fetching sheets:', err);
     } finally {
       setIsLoading(false);
@@ -42,6 +56,14 @@ export default function SheetList() {
     fetchSheets();
   }, []);
 
+  // Filter sheets based on search query
+  useEffect(() => {
+    const filtered = sheets.filter(sheet => 
+      sheet.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+    setFilteredSheets(filtered);
+  }, [searchQuery, sheets]);
+
   const handleEdit = (sheet: Sheet) => {
     setEditingId(sheet.id);
     setEditName(sheet.name);
@@ -51,7 +73,7 @@ export default function SheetList() {
     try {
       setError(null);
       // Make API call to update sheet name
-      await axios.put(`http://localhost:8000/api/sheets/${id}`, {
+      await api.put(`/sheets/${id}`, {
         name: editName
       });
 
@@ -71,10 +93,18 @@ export default function SheetList() {
   const handleDelete = async (id: number) => {
     try {
       setError(null);
-      await axios.delete(`http://localhost:8000/api/sheets/${id}`);
+      const response = await api.delete(`/sheets/${id}`);
+      
+      if (response.data?.error) {
+        throw new Error(response.data.message);
+      }
+      
       setSheets(sheets.filter(sheet => sheet.id !== id));
-    } catch (err) {
-      setError('Failed to delete sheet');
+      successToast('Sheet deleted successfully');
+    } catch (err: any) {
+      const errorMessage = err?.response?.data?.message || err.message || 'Failed to delete sheet';
+      setError(errorMessage);
+      errorToast(errorMessage);
       console.error('Error deleting sheet:', err);
     }
   };
@@ -83,12 +113,17 @@ export default function SheetList() {
     if (newSheetName.trim()) {
       try {
         setError(null);
-        const response = await axios.post('http://localhost:8000/api/sheets/', {
+        const response = await api.post('/sheets/', {
           name: newSheetName.trim(),
-          columns: [],
-          sheetData: []
+          columns: ["A"], // Default column
+          sheetData: [
+            {
+              position: 0,
+              row: ["N/A"] // Default empty row with one column
+            }
+          ]
         });
-
+  
         setSheets([...sheets, response.data]);
         setNewSheetName("");
         setIsAddingNew(false);
@@ -108,13 +143,8 @@ export default function SheetList() {
   }
 
   return (
-    <div className="p-4">
-      {error && (
-        <div className="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-          <span className="block sm:inline">{error}</span>
-        </div>
-      )}
-
+    <div className="p-4 py-10">
+   
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Sheets</h1>
         {!isAddingNew && (
@@ -128,6 +158,24 @@ export default function SheetList() {
             New Sheet
           </button>
         )}
+      </div>
+
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search sheets by name..."
+            className="w-full px-4 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {isAddingNew && (
@@ -163,7 +211,7 @@ export default function SheetList() {
       )}
 
       <ul className="space-y-2">
-        {sheets.map((sheet) => (
+        {filteredSheets.map((sheet) => (
           <li key={sheet.id} className="group flex items-center bg-gray-100 hover:bg-gray-200 rounded">
             {editingId === sheet.id ? (
               <div className="flex w-full p-4 items-center justify-between">

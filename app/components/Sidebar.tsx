@@ -9,26 +9,18 @@ export default function Sidebar() {
         <h2 className="text-sm font-semibold text-gray-600 mb-4">Navigation</h2>
         <nav className="space-y-1">
           <Link
-            href="/"
+            href="/sheet"
             className="flex items-center px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100"
           >
             <span className="mr-2">📊</span>
             Sheets
           </Link>
           <Link
-            href="/recent"
+            href="/users"
             className="flex items-center px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100"
           >
             <span className="mr-2">🕒</span>
-            Recent
-          </Link>
-          <Link
-            href="/shared"
-            className="flex items-center px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100"
-          >
-            <span className="mr-2">👥</span>
-            Shared
-          </Link>
+            Users          </Link>
         </nav>
       </div>
     </aside>
