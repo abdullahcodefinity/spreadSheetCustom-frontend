@@ -1,8 +1,7 @@
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Network } from "@/src/api";
-import useLoader from "./useLoader";
-import useToast from "./useToast";
+
 import { useState } from "react";
 
 interface FetchDataParams {
