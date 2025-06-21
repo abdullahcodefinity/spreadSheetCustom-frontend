@@ -10,15 +10,15 @@ export function middleware(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith('/login') || 
                     request.nextUrl.pathname.startsWith('/signup');
 
-  if (!token && !isAuthPage) {
-    // Redirect to login if trying to access protected route without token
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
+  // if (!token && !isAuthPage) {
+  //   // Redirect to login if trying to access protected route without token
+  //   return NextResponse.redirect(new URL('/login', request.url));
+  // }
 
-  if (token && isAuthPage) {
-    // Redirect to sheets if trying to access auth pages with token
-    return NextResponse.redirect(new URL('/sheet', request.url));
-  }
+  // if (token && isAuthPage) {
+  //   // Redirect to sheets if trying to access auth pages with token
+  //   return NextResponse.redirect(new URL('/sheet', request.url));
+  // }
 
   return NextResponse.next();
 }

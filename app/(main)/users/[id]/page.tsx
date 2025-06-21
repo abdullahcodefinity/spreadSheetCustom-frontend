@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, use } from 'react';
-import api from '@/app/utils/api';
+import useGetById from '@/app/hooks/useGetById';
+import usePostData from '@/app/hooks/ usePostData';
+import useUpdateData from '@/app/hooks/ useUpdateData';
 import useToast from '@/app/hooks/useToast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -28,8 +30,6 @@ interface ApiError {
 export default function UserManagement({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const { successToast, errorToast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
   const [formData, setFormData] = useState<UserFormData>({
     email: '',
     password: '',
@@ -43,38 +43,44 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
   const mode = searchParams.get('mode') || 'create';
   const isEditMode = mode === 'edit';
 
-  useEffect(() => {
-    if (isEditMode) {
-      fetchUserData();
-    }
-  }, [isEditMode]);
+  // Use useGetById hook for fetching user data
+  const { data: userData, isLoading: isFetching } = useGetById({
+    URL: `/auth/users/${resolvedParams.id}`,
+    key: ['user', resolvedParams.id],
+    enabled: isEditMode
+  });
 
-  const fetchUserData = async () => {
-    setIsFetching(true);
-    try {
-      const response = await api.get(`/auth/users/${resolvedParams.id}`);
-      const user = response.data.user;
+  // Use usePostData hook for creating users
+  const { mutate: createUser, isLoading: isCreating } = usePostData({
+    URL: '/auth/create-user',
+    mode: 'post',
+    link: '/users',
+    isNavigate: true
+  });
+
+  // Use useUpdateData hook for updating users
+  const { mutate: updateUser } = useUpdateData({
+    URL: `/auth/users/${resolvedParams.id}`,
+    link: '/users',
+    isUpdate: false
+  });
+
+  // Update form data when user data is fetched
+  useEffect(() => {
+    if (userData && isEditMode) {
+      const user = userData.user;
       setFormData({
         email: user.email,
         name: user.name,
         password: '', // Don't show existing password
-        role: user.role, // Add role field
+        role: user.role,
         permissions: user.permissions.map((permission: any) => ({
           action: permission?.permission?.action,
           subject: permission?.permission?.subject
         }))
       });
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        errorToast(error.response.data.message);
-      } else {
-        errorToast('Failed to fetch user details');
-      }
-      console.error('Error fetching user:', error);
-    } finally {
-      setIsFetching(false);
     }
-  };
+  }, [userData, isEditMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); // Prevent form submission from reloading the page
@@ -84,7 +90,6 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
       return;
     }
 
-    setIsLoading(true);
     try {
       if (isEditMode) {
         // Only send password if it's not empty
@@ -92,20 +97,18 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
           ...formData,
           password: formData.password || undefined
         };
-        await api.put(`/auth/users/${resolvedParams.id}`, updateData);
-        successToast('User updated successfully');
+        updateUser(updateData);
       } else {
-        await api.post('/auth/create-user', formData);
-        successToast('User created successfully');
+        createUser(formData);
         // Reset form only in create mode
         setFormData({
           email: '',
           password: '',
-          name: '',role:'user',
+          name: '',
+          role: 'user',
           permissions: []
         });
       }
-      router.push('/users');
     } catch (error: any) {
       if (error.response?.data) {
         const apiError = error.response.data as ApiError;
@@ -124,8 +127,6 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
         errorToast(`Failed to ${isEditMode ? 'update' : 'create'} user`);
       }
       console.error(`Error ${isEditMode ? 'updating' : 'creating'} user:`, error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -155,6 +156,8 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
   const isPermissionChecked = (action: SheetPermission['action']) => {
     return formData?.permissions?.some(p => p.action === action);
   };
+
+  const isLoading = isCreating;
 
   if (isFetching) {
     return (

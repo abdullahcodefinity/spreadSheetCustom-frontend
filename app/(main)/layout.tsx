@@ -5,6 +5,7 @@ import Header from "@/app/components/Header";
 import Sidebar from "@/app/components/Sidebar";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import AuthGuard from "../components/AuthGaurd";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,14 +28,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <Header />
-        <Sidebar />
-        <main className=" min-h-screen bg-gray-50 md:ml-64 transition-all">
-          <div className="p-4 sm:p-6">{children}</div>
-        </main>
-      </body>
-    </html>
+    <AuthGuard requireAuth={true} redirectTo="/login">
+
+
+      <Header />
+      <Sidebar />
+      <main className=" min-h-screen pt-10 bg-gray-50 md:ml-64 transition-all">
+        <div className="p-4 sm:p-6">{children}</div>
+      </main>
+
+    </AuthGuard>
   );
 }

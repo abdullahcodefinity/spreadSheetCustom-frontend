@@ -2,9 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '@/app/utils/api';
+
 import useToast from '@/app/hooks/useToast';
+import useFetchData from '@/app/hooks/useFetchData';
+import useDelete from '@/app/hooks/useDelete';
 import dayjs from 'dayjs';
+import { DeleteModal } from '@/app/components/modal/DeleteModal';
+
 
 interface SheetPermission {
   action: 'create' | 'read' | 'update' | 'delete';
@@ -30,65 +34,54 @@ interface ApiError {
 export default function UserList() {
   const router = useRouter();
   const { successToast, errorToast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [deleteModal, setDeleteModal] = useState({
+    isShow: false,
+    userId: null as number | null,
+    userName: ''
+  });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
+  
+    // Delete user using useDelete hook
+    const { mutate: deleteUser, isLoading: isDeleting ,refreshDelete} = useDelete({
+      URL: '/auth/users',
+      key: ['users']
+    });
+  // Fetch users using useFetchData hook
+  const { data: usersData, isLoading } = useFetchData({
+    URL: '/auth/users',
+    key: ['users', refreshDelete],
+    enabled: true
+  });
+
+  // Extract users from the response
+  const users = usersData?.users || [];
 
   useEffect(() => {
     // Filter users based on search query
-    const filtered = users.filter(user => 
+    const filtered = users.filter((user: User) =>
       user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email.toLowerCase().includes(searchQuery.toLowerCase())
     );
     setFilteredUsers(filtered);
   }, [searchQuery, users]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get('/auth/users');
-      setUsers(response.data.users);
-      setFilteredUsers(response.data.users);
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        errorToast(error.response.data.message);
-      } else {
-        errorToast('Failed to fetch users');
-      }
-      console.error('Error fetching users:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleEdit = (userId: number) => {
     router.push(`/users/${userId}?mode=edit`);
   };
 
-  const handleDelete = async (userId: number) => {
-    if (!confirm('Are you sure you want to delete this user?')) {
-      return;
-    }
+  const handleDelete = (userId: number, userName: string) => {
+    setDeleteModal({
+      isShow: true,
+      userId,
+      userName
+    });
+  };
 
-    setIsDeleting(userId);
-    try {
-      await api.delete(`/auth/users/${userId}`);
-      setUsers(users.filter(user => user.id !== userId));
-      successToast('User deleted successfully');
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        errorToast(error.response.data.message);
-      } else {
-        errorToast('Failed to delete user');
-      }
-      console.error('Error deleting user:', error);
-    } finally {
-      setIsDeleting(null);
+  const confirmDelete = () => {
+    if (deleteModal.userId) {
+      deleteUser(deleteModal.userId);
     }
   };
 
@@ -118,8 +111,17 @@ export default function UserList() {
     );
   }
 
+
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      <DeleteModal
+        isShow={deleteModal.isShow}
+        setIsShow={(show) => setDeleteModal(prev => ({ ...prev, isShow: show }))}
+        title="Delete User"
+        description={`Are you sure you want to delete "${deleteModal.userName}"? This action cannot be undone.`}
+        agreeFunction={confirmDelete}
+      />
       <div className="max-w-7xl mx-auto px-4">
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex justify-between items-center mb-6">
@@ -186,14 +188,12 @@ export default function UserList() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-wrap gap-2">
                         {user.permissions.map((permission, index) => (
-                          permission?.permission && (
                           <span
                             key={index}
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPermissionLabel(permission?.permission)?.toLowerCase()}`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPermissionLabel(permission)?.toLowerCase()}`}
                           >
-                            { permission?.permission && getPermissionLabel(permission?.permission)}
+                            {getPermissionLabel(permission.permission)}
                           </span>
-                          )
                         ))}
                       </div>
                     </td>
@@ -215,17 +215,17 @@ export default function UserList() {
                           </svg>
                         </button>
                         <button
-                          onClick={() => handleDelete(user.id)}
-                          disabled={isDeleting === user.id}
-                          className={`text-red-600 hover:text-red-900 focus:outline-none ${
-                            isDeleting === user.id ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                          onClick={() => handleDelete(user.id, user.name)}
+                          disabled={isDeleting}
+                          className={`text-red-600 hover:text-red-900 focus:outline-none ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''
+                            }`}
                           title="Delete user"
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
                           </svg>
                         </button>
+
                       </div>
                     </td>
                   </tr>

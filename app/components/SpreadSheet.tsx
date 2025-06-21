@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import useDeviceType from "../hooks/useDeviceType";
+
 import { useParams, useRouter } from "next/navigation";
-import api from '@/app/utils/api';
-import useToast from '@/app/hooks/useToast';
+
+import useDeviceType from "../hooks/useDeviceType";
+import useToast from "../hooks/useToast";
+import useFetchData from "../hooks/useFetchData";
+import usePostData from "../hooks/ usePostData";
+import useUpdateData from "../hooks/ useUpdateData";
+import { Url } from "@/src/api";
+import useDelete from "../hooks/useDelete";
 
 const getColumnLabel = (index: number): string => {
   let label = "";
@@ -59,6 +65,7 @@ export default function Spreadsheet({ }) {
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [rowIndex, setRowIndex] = useState<number>(0);
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -70,56 +77,76 @@ export default function Spreadsheet({ }) {
   const deviceType = useDeviceType();
   const router = useRouter();
 
-  const fetchSpreadsheetData = async (id: number) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await api.get(`/sheets/${id}`);
 
-      // If the sheet is empty (no columns), add default column and row
-      if (!response.data.columns || response.data.columns.length === 0) {
-        const updatedData = {
-          ...response.data,
-          columns: ["A"],
-          sheetData: [
-            {
-              position: 0,
-              data: { "A": "" }
-            }
-          ]
-        };
 
-        // Update the backend with default values
-        await api.put(`/sheets/${id}/columns`, {
-          columns: updatedData.columns
-        });
+  // Post new row
+  const { mutate: postRow, refresh } = usePostData({
+    URL: Url.addNewRow,
+    mode: 'post',
+    link: '',
+    formData: false,
+    isNavigate: false,
+  });
 
-        const { headers, rows } = convertBackendDataToSpreadsheet(updatedData);
-        setColumnHeaders(headers);
-        setData(rows);
-      } else {
-        const { headers, rows } = convertBackendDataToSpreadsheet(response.data);
-        setColumnHeaders(headers);
-        setData(rows);
-      }
+  // Update row/cell
+  const { mutate: updateRow } = useUpdateData({
+    URL: Url.updateRow(Number(sheetId), rowIndex),
+    link: '',
+    isUpdate: false,
+    formData: false,
+  });
 
-      setSpreadsheetName(response.data.name);
-    } catch (err) {
-      setError('Failed to fetch spreadsheet data');
-      console.error('Error fetching spreadsheet:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Delete row
+  const { mutate: deleteRowMutate } = useDelete({
+    URL: Url.deleteRow(Number(sheetId), rowIndex),
+    key: ['sheet'],
+    link: '',
+  });
 
+  // Update columns
+  const { mutate: updateColumnsMutate } = useUpdateData({
+    URL: Url.updateColumns(Number(sheetId)),
+    link: '',
+    isUpdate: false,
+    formData: false,
+  });
+
+  // Update sheet (for sharing)
+  const { mutate: updateSheet } = useUpdateData({
+    URL: Url.shareSheet(Number(sheetId)),
+    link: '',
+    isUpdate: false,
+    formData: false,
+  });
+
+  // Fetch users for sharing
+  const { data: usersData } = useFetchData({
+    URL: Url.getAllUsers(null),
+    key: ['users'],
+    enabled: isShareModalOpen,
+  });
+
+
+  // Fetch spreadsheet data using useFetchData
+  const { data: fetchedSheet } = useFetchData({
+    URL: Url.getSheet(Number(sheetId)),
+    key: ["sheet", sheetId ?? "", refresh],
+    enabled: !!sheetId,
+  });
+
+
+
+  // Sync fetched data to local state
   useEffect(() => {
-    if (sheetId) {
-      fetchSpreadsheetData(Number(sheetId));
+    if (fetchedSheet) {
+      const { headers, rows } = convertBackendDataToSpreadsheet(fetchedSheet);
+      setColumnHeaders(headers);
+      setData(rows);
+      setSpreadsheetName(fetchedSheet.name);
     }
-  }, [sheetId]);
+  }, [fetchedSheet]);
 
   // Function to convert backend data to spreadsheet format
-
   const convertBackendDataToSpreadsheet = (backendData: BackendSpreadsheetData) => {
     const headers = backendData.columns;
 
@@ -153,7 +180,6 @@ export default function Spreadsheet({ }) {
     return { headers, rows };
   };
 
-
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
@@ -179,67 +205,37 @@ export default function Spreadsheet({ }) {
     setTempValue(data[row][col]);
   };
 
-
-
+  // Update the saveCell function to use updateRow
   const saveCell = async (row: number, col: number) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const updated = [...data];
-      updated[row][col] = tempValue;
-
-      // Create the payload for updating the row
-      const payload = {
-        row: updated[row]
-      };
-
-      // Make API call to update the row using spreadsheetId and position
-      await api.put(`/sheet-data/${sheetId}/position/${row}`, payload);
-
-      // Update local state
-      setData(updated);
-      setEditingCell(null);
-
-      // Refresh the data to ensure sync with backend
-      await fetchSpreadsheetData(Number(sheetId));
-
-    } catch (err) {
-      setError('Failed to update cell');
-      console.error('Error updating cell:', err);
-      // Revert the changes if the API call fails
-      setData(data);
-    } finally {
-      setIsLoading(false);
-    }
+    setRowIndex(row);
+    const updated = [...data];
+    updated[row][col] = tempValue;
+    const payload = { row: updated[row] };
+    updateRow(payload, {
+      onSuccess: () => {
+        setData(updated);
+        setEditingCell(null);
+      },
+      onError: () => {
+        setData(data);
+      },
+    });
   };
-
 
   const handleHeaderClick = (colIndex: number) => {
     setEditingHeader(colIndex);
     setTempHeader(columnHeaders[colIndex]);
   };
 
+  // Update the saveHeader function to use updateColumnsMutate
   const saveHeader = async (colIndex: number) => {
     const updated = [...columnHeaders];
     updated[colIndex] = tempHeader;
-
-    try {
-      // Update local state optimistically
-      setColumnHeaders(updated);
-      setEditingHeader(null);
-
-      // Make API call to update columns
-      await api.put(`/sheets/${sheetId}/columns`, {
-        columns: updated
-      });
-    } catch (err) {
-      // If API call fails, revert the changes
-      setColumnHeaders(columnHeaders);
-      setError('Failed to update column name');
-      console.error('Error updating column:', err);
-    }
+    setColumnHeaders(updated);
+    setEditingHeader(null);
+    updateColumnsMutate({ newColumnName: tempHeader, updateAtIndex: colIndex });
   };
+
 
   const exportCSV = () => {
     const csvContent = [
@@ -263,191 +259,102 @@ export default function Spreadsheet({ }) {
     link.click();
     document.body.removeChild(link);
   };
-  // Update the insertRowBelow function to use the same pattern
+
+  // Update the insertRowBelow function to use postRow
   const insertRowBelow = async (index: number) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Create empty row data based on current columns
-      const rowData = columnHeaders.map(() => "");
-
-      // Create the payload for the new row
-      const payload = {
-        spreadsheetId: Number(sheetId),
-        position: index + 1,
-        row: rowData
-      };
-
-      // Make API call to create new row
-      await api.post('/sheet-data', payload);
-
-      // Update local state with the new row
-      const newRow = Array(data[0].length).fill("");
-      setData((prev) => [...prev.slice(0, index + 1), newRow, ...prev.slice(index + 1)]);
-
-      // Refresh the data to get the updated row
-      await fetchSpreadsheetData(Number(sheetId));
-
-    } catch (err) {
-      setError('Failed to create new row');
-      console.error('Error creating row:', err);
-    } finally {
-      setIsLoading(false);
-    }
+    const rowData = columnHeaders.map(() => "");
+    const payload = {
+      spreadsheetId: Number(sheetId),
+      position: index + 1,
+      row: rowData,
+    };
+    postRow(payload, {
+      onSuccess: () => { },
+    });
   };
+
   const deleteRow = async (index: number) => {
+    setRowIndex(index)
+    console.log({ index }), '>>>:::::';
     if (data.length <= 1) return; // Don't delete if only one row remains
 
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      // Make API call to delete the row using sheetId and position
-      await api.delete(`/sheet-data/${sheetId}/position/${index}`);
-
-      // Update local state after successful deletion
-      setData((prev) => prev.filter((_, i) => i !== index));
-
-      // Refresh the data to ensure sync with backend
-      await fetchSpreadsheetData(Number(sheetId));
-
-    } catch (err) {
-      setError('Failed to delete row');
-      console.error('Error deleting row:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const insertColRight = async (index: number) => {
-    // Get the next column label based on the current number of columns
-    const newColumnLabel = getColumnLabel(columnHeaders.length);
-
-    const newColumnHeaders = [...columnHeaders.slice(0, index + 1), newColumnLabel, ...columnHeaders.slice(index + 1)];
-    const newData = data.map((row) => [...row.slice(0, index + 1), "", ...row.slice(index + 1)]);
-
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // First make the API call and wait for response
-      const response = await api.put(`/sheets/${sheetId}/columns`, {
-        columns: newColumnHeaders
-      });
-
-      // Only update frontend state if backend update was successful
-      if (response.data) {
-        setData(newData);
-        setColumnHeaders(newColumnHeaders);
-        successToast('Column inserted successfully');
+    deleteRowMutate(null, {
+      onSuccess: () => {
+        setData((prev) => prev.filter((_, i) => i !== index));
+        successToast('Row deleted successfully');
+      },
+      onError: () => {
+        errorToast('Failed to delete row');
       }
+    });
+  };
+
+  // Update the insertColRight function to use updateColumnsMutate
+  const insertColRight = async (index: number) => {
+    try {
+      const newColumnLabel = getColumnLabel(columnHeaders.length);
+      const newColumnHeaders = [...columnHeaders.slice(0, index + 1), newColumnLabel, ...columnHeaders.slice(index + 1)];
+      const newData = data.map((row) => [...row.slice(0, index + 1), "", ...row.slice(index + 1)]);
+
+      await updateColumnsMutate({ newColumnName: newColumnLabel, insertAtIndex: index + 1 }, {
+        onSuccess: () => {
+          setData(newData);
+          setColumnHeaders(newColumnHeaders);
+          successToast('Column inserted successfully');
+        },
+        onError: () => {
+          errorToast('Failed to insert column');
+        }
+      });
     } catch (err) {
-      setError('Failed to insert column');
-      errorToast(err.response.data.message);
       console.error('Error inserting column:', err);
-    } finally {
-      setIsLoading(false);
+      errorToast('Failed to insert column');
     }
   };
-  const deleteCol = async (index: number) => {
-    if (data[0].length <= 1) return;
 
+  // Update the deleteCol function to use updateColumnsMutate
+  const deleteCol = async (index: number) => {
+
+    if (data[0].length <= 1) return;
     const newColumnHeaders = columnHeaders.filter((_, i) => i !== index);
     const newData = data.map((row) => row.filter((_, i) => i !== index));
-
-    try {
-      // Update the state optimistically
-      setData(newData);
-      setColumnHeaders(newColumnHeaders);
-
-      // Make the API call
-      await updateColumns(newColumnHeaders);
-    } catch (err) {
-      // If the API call fails, revert the changes
-      setData(data);
-      setColumnHeaders(columnHeaders);
-      console.error('Error deleting column:', err);
-    }
+    setData(newData);
+    setColumnHeaders(newColumnHeaders);
+    updateColumnsMutate({ deleteAtIndex: index });
   };
 
-
-  const updateColumns = async (newColumns: string[]) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await api.put(`/sheets/${sheetId}/columns`, {
-        columns: newColumns
-      });
-
-      if (response.data?.error) {
-        throw new Error(response.data.message);
-      }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || err.message || 'Failed to update columns';
-      setError(errorMessage);
-      console.log("heloo jee")
-      errorToast(errorMessage);
-      console.error('Error updating columns:', err);
-      // Revert the changes if the API call fails
-      setColumnHeaders(columnHeaders);
-    } finally {
-      setIsLoading(false);
+  // Update users state from usersData
+  useEffect(() => {
+    if (usersData && usersData.users) {
+      setUsers(usersData.users);
     }
-  };
+  }, [usersData]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await api.get('/auth/users');
-      setUsers(response.data.users);
-    } catch (error: any) {
-      if (error.response?.data?.message) {
-        errorToast(error.response.data.message);
-      } else {
-        errorToast('Failed to fetch users');
-      }
-      console.error('Error fetching users:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
+  // Update the handleShare function to use updateSheet
   const handleShare = async () => {
     if (!selectedUser) {
       errorToast('Please select a user to share with');
       return;
     }
-
-    try {
-      setIsLoading(true);
-      const response = await api.put(`/sheets/${sheetId}`, {
-        name: spreadsheetName,
-        ownerId: selectedUser
-      });
-
-      if (response.data) {
+    updateSheet({ name: spreadsheetName, ownerId: selectedUser }, {
+      onSuccess: () => {
         successToast('Sheet shared successfully');
         setIsShareModalOpen(false);
-        // Redirect to user list after successful share
-        router.push('/sheet'); // Adjust this path according to your user list route
-      }
-    } catch (err: any) {
-      const errorMessage = err?.response?.data?.message || 'Failed to share sheet';
-      errorToast(errorMessage);
-      console.error('Error sharing sheet:', err);
-    } finally {
-      setIsLoading(false);
-    }
+        router.push('/sheet');
+      },
+      onError: (err: unknown) => {
+        errorToast('Failed to share sheet');
+      },
+    });
   };
 
   return (
-    <div className="p-6 space-y-4 relative">
+    <div className="p-6 space-y-4 py-10 relative">
       <div className="flex justify-between items-center">
-        {/* <h2 className="text-xl font-semibold text-gray-800">{spreadsheetName}</h2> */}
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => {
               setIsShareModalOpen(true);
-              fetchUsers();
             }}
             className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
           >
@@ -464,7 +371,7 @@ export default function Spreadsheet({ }) {
 
       {/* Share Modal */}
       {isShareModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div style={{ marginTop: '0px' }} className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 ">
           <div className="bg-white rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">Share Sheet</h3>
@@ -475,7 +382,7 @@ export default function Spreadsheet({ }) {
                 ✕
               </button>
             </div>
-            
+
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select User
@@ -488,7 +395,7 @@ export default function Spreadsheet({ }) {
                 <option value="">Select a user</option>
                 {users.map((user) => (
                   <option key={user.id} value={user.id}>
-                    {user.name} 
+                    {user.name}
                   </option>
                 ))}
               </select>
@@ -569,8 +476,6 @@ export default function Spreadsheet({ }) {
                     >
                       ⋮
                     </button>
-
-
 
                     <div onClick={() => handleCellClick(rowIndex, colIndex)} className="min-h-[20px] ">
                       {editingCell?.row === rowIndex && editingCell?.col === colIndex ? (
