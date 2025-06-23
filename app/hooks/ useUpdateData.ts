@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import useLoader from "./useLoader";
-import { Network } from "@/src/api";
+import { multipartConfig, Network } from "@/src/api";
 import useToast from "./useToast";
 import useAuth from "./useAuth";
 
@@ -37,7 +37,7 @@ const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: Update
       headers = multipartHeaders;
     }
     
-    const response = await Network.put(URL, data, headers);
+    const response = await Network.put(URL, data, headers as any);
     if (!response.ok) return { data: { error: (response.data as any)?.error }, status: 0 };
     return { data: response.data as any, status: 1 };
   };
@@ -48,13 +48,18 @@ const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: Update
     onSuccess: (data: UpdateResponse) => {
       // Handle success here, if needed
       if (data.status === 1) {
-        successToast(data?.data?.message);
+        if (data.data.message) {
+          successToast(data.data.message);
+        }
         if (isUpdate) {
-          updateUser(data?.data?.user);
+          updateUser(data.data.user);
         }
         router.push(link);
       } else {
-        return errorToast(data?.data?.message);
+        // Only call errorToast if message exists
+        if (data?.data?.message) {
+          errorToast(data.data.message);
+        }
       }
     },
     onError: (error: Error) => {

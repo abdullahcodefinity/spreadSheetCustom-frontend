@@ -15,11 +15,23 @@ interface SheetPermission {
   subject: 'Sheet';
 }
 
+interface Permission {
+  id: number;
+  userId: number;
+  permissionId: number;
+  permission: {
+    id: number;
+    action: 'create' | 'read' | 'update' | 'delete';
+    subject: 'Sheet';
+  }
+}
+
 interface User {
   id: number;
   name: string;
   email: string;
-  permissions: SheetPermission[];
+  role: string;
+  permissions: Permission[];
   createdAt: string;
   updatedAt: string;
 }
@@ -44,7 +56,7 @@ export default function UserList() {
 
   
     // Delete user using useDelete hook
-    const { mutate: deleteUser, isLoading: isDeleting ,refreshDelete} = useDelete({
+    const { mutate: deleteUser, isPending: isDeleting ,refreshDelete} = useDelete({
       URL: '/auth/users',
       key: ['users']
     });
@@ -55,7 +67,7 @@ export default function UserList() {
     enabled: true
   });
 
-  // Extract users from the response
+
   const users = usersData?.users || [];
 
   useEffect(() => {
@@ -110,6 +122,8 @@ export default function UserList() {
       </div>
     );
   }
+
+  console.log(filteredUsers,'Usersssss');
 
 
 
@@ -190,7 +204,7 @@ export default function UserList() {
                         {user.permissions.map((permission, index) => (
                           <span
                             key={index}
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPermissionLabel(permission)?.toLowerCase()}`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPermissionLabel(permission.permission)?.toLowerCase()}`}
                           >
                             {getPermissionLabel(permission.permission)}
                           </span>

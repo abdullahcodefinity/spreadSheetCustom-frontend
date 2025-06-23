@@ -30,12 +30,12 @@ const useDelete = ({ URL, key, link }: DeleteParams) => {
 
   const deleteData = async (id: number | string | null): Promise<DeleteResponse> => {
     const url = id ? `${URL}/${id}` : URL;
-    const response = await Network.delete(url);
+    const response = await Network.delete(url, {}, {});
     if (!response.ok) return { data: { error: response.data as string }, status: 0 };
-    return { data: response.data, status: 1 };
+    return { data: { message: response.data as string }, status: 1 };
   };
 
-  const { mutate, mutateAsync, isLoading } = useMutation({
+  const { mutate, mutateAsync, isPending } = useMutation({
     mutationFn: deleteData,
     onSuccess: (data: DeleteResponse) => {
       if (data.status === 1) {
@@ -58,7 +58,7 @@ const useDelete = ({ URL, key, link }: DeleteParams) => {
     }
   });
 
-  return { mutate, mutateAsync, isLoading, refreshDelete };
+  return { mutate, mutateAsync, isPending, refreshDelete };
 };
 
 export default useDelete;

@@ -28,10 +28,10 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
 
     if (!response.ok) {
       setStatus(response.status || null)
-      throw new Error(response.data.error || 'Something went wrong');
+      throw new Error((response.data as {error?: string})?.error || 'Something went wrong');
     }
     return {
-      data: response.data,
+      data: response.data as unknown,
       status: response.status
     };
   };
@@ -41,9 +41,7 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
     queryKey: [key, page],
     queryFn: getData,
     enabled,
-    onSettled: () => {
-      return null
-    }
+
   });
 
 

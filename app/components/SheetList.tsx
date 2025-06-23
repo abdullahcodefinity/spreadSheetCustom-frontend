@@ -12,13 +12,36 @@ import usePostData from "../hooks/ usePostData";
 import useDelete from "../hooks/useDelete";
 import { DeleteModal } from "./modal/DeleteModal";
 
+
+interface SheetData {
+  id: number;
+  spreadsheetId: number;
+  position: number;
+  row: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface UserSheet {
+  id: number;
+  userId: number;
+  sheetId: number;
+  role: string;
+  user: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
 interface Sheet {
   id: number;
   name: string;
   columns: string[];
   createdAt: string;
   updatedAt: string;
-  sheetData: any[];
+  sheetData: SheetData[];
+  userSheets: UserSheet[];
 }
 
 export default function SheetList() {
@@ -123,7 +146,7 @@ export default function SheetList() {
     );
   }
 
-  console.log(isAddingNew, ":::>")
+  console.log(sheetsData, ":::>")
 
 
   return (
@@ -211,8 +234,9 @@ export default function SheetList() {
               </div>
             )}
 
+
             <ul className="space-y-2">
-              {sheetsData.map((sheet) => (
+              {sheetsData?.map((sheet: Sheet) => (
                 <li key={sheet.id} className="group flex items-center bg-gray-100 hover:bg-gray-200 rounded">
                   {editingId === sheet.id ? (
                     <div className="flex w-full p-4 items-center justify-between">
