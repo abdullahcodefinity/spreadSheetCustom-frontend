@@ -19,10 +19,10 @@ export default function AuthGuard({
   const { token, currentUser } = useContext(AuthContext);
   const router = useRouter();
   const pathname = usePathname();
-
   useEffect(() => {
     // Check localStorage directly for immediate token availability
     const storedToken = localStorage.getItem(keys.jwttoken);
+    const userRole = currentUser?.role;
   
     if (requireAuth && !storedToken) {
       // User needs to be authenticated but isn't
@@ -31,7 +31,12 @@ export default function AuthGuard({
       // User is authenticated but shouldn't be on this page (e.g., login page)
       router.push('/sheet');
     }
-  
+
+
+    // Restrict access to users page for non-super admins
+    if (pathname === '/users' && userRole !== 'SuperAdmin') {
+      router.push('/sheet');
+    }
   }, [requireAuth, redirectTo, router, pathname]);
 
 

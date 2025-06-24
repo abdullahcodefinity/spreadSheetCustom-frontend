@@ -31,7 +31,7 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
       throw new Error((response.data as {error?: string})?.error || 'Something went wrong');
     }
     return {
-      data: response.data as unknown,
+      data: response.data,
       status: response.status
     };
   };
@@ -41,7 +41,9 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
     queryKey: [key, page],
     queryFn: getData,
     enabled,
-
+    onSettled: () => {
+      return null
+    }
   });
 
 
@@ -50,7 +52,7 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
     console.log(error);
   }
 
-  console.log(data, 'llllll')
+
 
   return {
     data: data?.data,

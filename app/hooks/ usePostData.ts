@@ -49,7 +49,7 @@ const usePostData = ({
     const response = await Network[mode](URL, data, headers as any);
     setIsLoading(false);
     if (!response.ok) return { data: { error: (response.data as any)?.error }, status: 0 };
-    console.log("responseMAIN", response);
+
     return { data: response.data as any, status: 1 };
   };
 

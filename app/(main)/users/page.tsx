@@ -30,8 +30,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  role: string;
-  permissions: Permission[];
+  permissions: SheetPermission[];
   createdAt: string;
   updatedAt: string;
 }
@@ -123,7 +122,7 @@ export default function UserList() {
     );
   }
 
-  console.log(filteredUsers,'Usersssss');
+
 
 
 

@@ -8,6 +8,7 @@ interface ToastHook {
 
 const useToast = (): ToastHook => {
   const successToast = (message: string): void => {
+    
     toast.remove();
     toast.success(message, {
       position: "top-right",
@@ -27,7 +28,7 @@ const useToast = (): ToastHook => {
       duration: 8000,
       position: 'top-right',
       // Styling
-      style: {},
+      style: {top: '1040px'},
       className: '',
       // Custom Icon
       icon: '⚠️',
