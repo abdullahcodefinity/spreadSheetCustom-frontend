@@ -4,6 +4,7 @@ import useLoader from "./useLoader";
 import { multipartConfig, Network } from "@/src/api";
 import useToast from "./useToast";
 import useAuth from "./useAuth";
+import { useState } from "react";
 
 interface UpdateDataParams {
   URL: string;
@@ -22,6 +23,7 @@ interface UpdateResponse {
 }
 
 const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: UpdateDataParams) => {
+  const [refreshUpdate, setRefreshUpdate] = useState(false);
   const { updateUser } = useAuth();
   const { toggleLoader } = useLoader();
   const { successToast, errorToast } = useToast();
@@ -54,6 +56,7 @@ const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: Update
         if (isUpdate) {
           updateUser(data.data.user);
         }
+        setRefreshUpdate(true);
         router.push(link);
       } else {
         // Only call errorToast if message exists
@@ -73,7 +76,7 @@ const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: Update
     },
   });
 
-  return { mutate, data };
+  return { mutate, data ,refreshUpdate};
 };
 
 export default useUpdateData;

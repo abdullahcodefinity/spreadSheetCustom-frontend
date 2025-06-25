@@ -1,17 +1,8 @@
 "use client"
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-
-import useToast from '@/app/hooks/useToast';
-
-import useFetchData from "../hooks/useFetchData";
-import { Url, Network } from "@/src/api";
-import useDebounce from "../utils/utility";
-import usePostData from "../hooks/ usePostData";
-import useDelete from "../hooks/useDelete";
 import { DeleteModal } from "./modal/DeleteModal";
-import useAuth from "../hooks/useAuth";
+import { useSheetList } from "../(main)/sheet/hooks/useSheetList";
 
 
 interface SheetData {
@@ -46,92 +37,33 @@ interface Sheet {
 }
 
 export default function SheetList() {
-  const [sheets, setSheets] = useState<Sheet[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [isAddingNew, setIsAddingNew] = useState(false);
-  const [newSheetName, setNewSheetName] = useState("");
-  const [deletedId, setDeletedId] = useState<number | null>(null);
-  const [isShow, setIsShow] = useState(false);
+  const {
+    searchQuery,
+    setSearchQuery,
+    editingId,
+    setEditingId,
+    editName,
+    setEditName,
+    isAddingNew,
+    setIsAddingNew,
+    newSheetName,
+    setNewSheetName,
+    isShow,
+    setIsShow,
+    setDeletedId,
+    sheets,
+    isLoadingData,
+    status,
+    handleEdit,
+    handleDelete,
+    handleSave,
+    handleAddNewSheet,
+    permissions
+  } = useSheetList();
+
+  const { hasCreatePermission, hasUpdatePermission, hasDeletePermission } = permissions;
 
 
-
-  const { currentUser,checkPermission } = useAuth();
-
-  const [error, setError] = useState<string | null>(null);
-
-
-  const debounceSearch = useDebounce(searchQuery, 1000);
-
-  const { mutate: deleteSheet, refreshDelete } = useDelete({
-    URL: '/sheets',
-    key: ["sheets"],
-    link: "sheet",
-  });
-
-  const { data: sheetsData, isLoading: isLoadingData, status } = useFetchData({
-    URL: Url.getAllSheets(searchQuery),
-    key: ['sheets', debounceSearch, !isAddingNew, refreshDelete],
-    page: 1,
-    enabled: true
-  });
-
-
-
-  // Create sheet using usePostData hook
-  const { mutate } = usePostData({
-    URL: Url.createSheet,
-    mode: 'post',
-    link: 'sheet',
-    formData: false
-  });
-
-  const handleEdit = (sheet: Sheet) => {
-    setEditingId(sheet.id);
-    setEditName(sheet.name);
-  };
-
-  const handleDelete = () => {
-    if (deletedId) {
-      deleteSheet(deletedId);
-    }
-  };
-
-  const handleSave = async (id: number) => {
-    try {
-      setError(null);
-      await Network.put(`/sheets/${id}`, {
-        name: editName
-      });
-      setEditingId(null);
-    } catch (err) {
-      setError('Failed to update sheet name');
-      console.error('Error updating sheet:', err);
-      setEditName(sheets.find(sheet => sheet.id === id)?.name || '');
-    }
-  };
-
-  const handleAddNewSheet = async () => {
-    if (newSheetName.trim()) {
-      const sheetData = {
-        name: newSheetName.trim(),
-        columns: ["A"],
-        sheetData: [
-          {
-            position: 0,
-            row: ["N/A"]
-          }
-        ]
-      }
-      mutate(sheetData, {
-        onSuccess: () => {
-          setNewSheetName("");
-          setIsAddingNew(false);
-        }
-      });
-    }
-  };
 
   if (isLoadingData) {
     return (
@@ -151,15 +83,8 @@ export default function SheetList() {
     );
   }
 
-  const hasCreatePermission = checkPermission(currentUser, 'create', 'sheet');
-  const hasUpdatePermission = checkPermission(currentUser, 'update', 'sheet');
-  const hasDeletePermission = checkPermission(currentUser, 'delete', 'sheet');
-
-
-  
   return (
     <>
-
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Sheets</h1>
         {!isAddingNew && hasCreatePermission && (
@@ -174,7 +99,7 @@ export default function SheetList() {
           </button>
         )}
       </div>
-      {!sheetsData || sheetsData.length === 0 && !isAddingNew ?
+      {!sheets || sheets.length === 0 && !isAddingNew ?
         <>
           <div className="p-4 py-10 text-center">
             <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
@@ -242,9 +167,8 @@ export default function SheetList() {
               </div>
             )}
 
-
             <ul className="space-y-2">
-              {sheetsData?.map((sheet: Sheet) => (
+              {sheets?.map((sheet: Sheet) => (
                 <li key={sheet.id} className="group flex items-center bg-gray-100 hover:bg-gray-200 rounded">
                   {editingId === sheet.id ? (
                     <div className="flex w-full p-4 items-center justify-between">
