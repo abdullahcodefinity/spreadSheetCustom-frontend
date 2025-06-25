@@ -40,10 +40,7 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
 
     queryKey: [key, page],
     queryFn: getData,
-    enabled,
-    onSettled: () => {
-      return null
-    }
+    enabled
   });
 
 

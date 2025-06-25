@@ -30,7 +30,7 @@ interface User {
   id: number;
   name: string;
   email: string;
-  permissions: SheetPermission[];
+  permissions: Permission[];
   createdAt: string;
   updatedAt: string;
 }

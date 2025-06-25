@@ -58,7 +58,7 @@ export const useSheetList = () => {
   const debounceSearch = useDebounce(searchQuery, 1000);
 
   const { mutate: deleteSheet, refreshDelete } = useDelete({
-    URL: Url.deleteSheet(deletedId),
+    URL: Url.deleteSheet(Number(deletedId)),
     key: ["sheets"],
     link: "sheet",
   });
@@ -92,7 +92,7 @@ export const useSheetList = () => {
 
   const handleDelete = () => {
     if (deletedId) {
-      deleteSheet();
+      deleteSheet(null);
       setIsShow(false);
     }
   };
@@ -110,7 +110,7 @@ export const useSheetList = () => {
         onError: () => {
           setError('Failed to update sheet name');
           errorToast('Failed to update sheet name');
-          setEditName(sheetsData?.find(sheet => sheet.id === id)?.name || '');
+          setEditName(sheetsData?.find((sheet: Sheet) => sheet.id === id)?.name || '');
         }
       }
     );
