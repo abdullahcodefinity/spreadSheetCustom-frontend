@@ -22,13 +22,23 @@ export default function Sidebar() {
             Sheets
           </Link>
           {isSuperAdmin && (
+            <>
             <Link
               href="/users"
               className="flex items-center px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100"
-            >
+              >
               <span className="mr-2">🕒</span>
               Users
             </Link>
+          
+            <Link
+              href="/key-value"
+              className="flex items-center px-3 py-2 text-sm rounded-md text-gray-700 hover:bg-gray-100"
+              >
+              <span className="mr-2"></span>
+          Key Value
+            </Link>
+              </>
           )}
         </nav>
       </div>

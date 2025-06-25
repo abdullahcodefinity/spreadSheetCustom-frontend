@@ -8,7 +8,7 @@ import useToast from '@/app/hooks/useToast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface SheetPermission {
-  action: 'create' | 'read' | 'update' | 'delete';
+  action: 'create' | 'read' | 'update' | 'delete' | 'addColumn' | 'updateColumnHeader';
   subject: 'Sheet';
 }
 
@@ -84,7 +84,7 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault(); // Prevent form submission from reloading the page
-    
+
     if (formData.permissions.length === 0) {
       errorToast('Please select at least one permission');
       return;
@@ -299,6 +299,32 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
                   />
                   <label htmlFor="delete" className="ml-2 block text-sm text-gray-900">
                     Delete Sheets
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="addColumn"
+                    name="addColumn"
+                    checked={isPermissionChecked('addColumn')}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="addColumn" className="ml-2 block text-sm text-gray-900">
+                    Add Column
+                  </label>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="updateColumnHeader"
+                    name="updateColumnHeader"
+                    checked={isPermissionChecked('updateColumnHeader')}
+                    onChange={handleChange}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="updateColumnHeader" className="ml-2 block text-sm text-gray-900">
+                    Update Column Header
                   </label>
                 </div>
               </div>

@@ -38,6 +38,8 @@ export const useSheetData = (sheetId: string | undefined) => {
   const [spreadsheetName, setSpreadsheetName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canUpdateColumnHeader, setCanUpdateColumnHeader] = useState(false)
+  const [canAddColumn, setCanAddColumn] = useState(false)
 
   const [canUpdateSheet, setCanUpdateSheet] = useState(false);
   const [rowIndex, setRowIndex] = useState<number>(0);
@@ -65,6 +67,12 @@ export const useSheetData = (sheetId: string | undefined) => {
     formData: false,
   });
 
+  const { mutate: moveRowMutate } = useUpdateData({
+    URL: Url.moveRow(Number(sheetId)),
+    link: '',
+    formData: false,
+  });
+
   const { mutate: deleteRowMutate } = useDelete({
     URL: Url.deleteRow(Number(sheetId), rowIndex),
     key: ['sheet'],
@@ -78,8 +86,16 @@ export const useSheetData = (sheetId: string | undefined) => {
     formData: false,
   });
 
-   // Update sheet (for sharing)
-   const { mutate: updateSheet } = useUpdateData({
+  const { mutate: moveColumnsMutate } = useUpdateData({
+    URL: Url.moveColumns(Number(sheetId)),
+    link: '',
+    isUpdate: false,
+    formData: false,
+  });
+
+
+  // Update sheet (for sharing)
+  const { mutate: updateSheet } = useUpdateData({
     URL: Url.shareSheet(Number(sheetId)),
     link: '',
     isUpdate: false,
@@ -141,7 +157,10 @@ export const useSheetData = (sheetId: string | undefined) => {
       setData(rows);
       setColumnHeaders(headers);
       setSpreadsheetName(sheetData.name);
-      setCanUpdateSheet(checkPermissions(sheetData));
+      setCanUpdateSheet(checkPermissions(sheetData).hasUpdatePermission);
+      setCanUpdateColumnHeader(checkPermissions(sheetData).hasUpdateColumnPermission);
+      setCanAddColumn(checkPermissions(sheetData).hasAddColumnPermission)
+
     }
   }, [sheetData]);
 
@@ -151,11 +170,22 @@ export const useSheetData = (sheetId: string | undefined) => {
 
 
 
-  
+
   // Permission Handlers
-  const checkPermissions = (sheetData: any): boolean => {
-    if (!currentUser) return false;
-    if (currentUser.role === 'SuperAdmin') return true;
+  const checkPermissions = (sheetData: any): { isOwner: boolean; hasUpdatePermission: boolean; hasUpdateColumnPermission: boolean; hasAddColumnPermission: boolean } => {
+    if (!currentUser) return {
+      isOwner: false,
+      hasUpdatePermission: false,
+      hasUpdateColumnPermission: false,
+      hasAddColumnPermission: false
+    };
+
+    if (currentUser.role === 'SuperAdmin') return {
+      isOwner: true,
+      hasUpdatePermission: true,
+      hasUpdateColumnPermission: true,
+      hasAddColumnPermission: true
+    };
 
     const isOwner = sheetData.userSheets?.some(
       (userSheet: any) => userSheet.userId === currentUser.id && userSheet.role === 'owner'
@@ -165,21 +195,29 @@ export const useSheetData = (sheetId: string | undefined) => {
       (permission: any) => permission.action.toLowerCase() === 'update' && permission.subject.toLowerCase() === 'sheet'
     );
 
-    return isOwner || hasUpdatePermission;
+    const hasUpdateColumnPermission = currentUser.permissions?.some(
+      (permission: any) => permission.action.toLowerCase() === 'updatecolumnheader' && permission.subject.toLowerCase() === 'sheet'
+    );
+
+    const hasAddColumnPermission = currentUser.permissions?.some(
+      (permission: any) => permission.action.toLowerCase() === 'addcolumn' && permission.subject.toLowerCase() === 'sheet'
+    );
+
+    return { isOwner, hasUpdatePermission, hasUpdateColumnPermission, hasAddColumnPermission };
   };
 
 
 
   // Row Operations
-  const handleRowOperation = async (operation: 'add' | 'delete', index: number) => {
+  const handleRowOperation = async (operation: 'add' | 'delete' | 'move', params: number | { sourceIndex: number, targetIndex: number }) => {
     if (!canUpdateSheet) {
       errorToast('You do not have permission to modify this sheet');
       return;
     }
-
     setIsLoading(true);
     try {
       if (operation === 'add') {
+        const index = params as number;
         const rowData = columnHeaders.map(() => "");
         const payload = {
           spreadsheetId: Number(sheetId),
@@ -195,6 +233,7 @@ export const useSheetData = (sheetId: string | undefined) => {
           }
         });
       } else if (operation === 'delete') {
+        const index = params as number;
         if (data.length <= 1) return;
         setRowIndex(index);
         deleteRowMutate(null, {
@@ -206,6 +245,25 @@ export const useSheetData = (sheetId: string | undefined) => {
             errorToast('Failed to delete row');
           }
         });
+      } else if (operation === 'move') {
+        const { sourceIndex, targetIndex } = params as { sourceIndex: number, targetIndex: number };
+        const payload = {
+          spreadsheetId: Number(sheetId),
+          sourceIndex,
+          targetIndex
+        };
+        moveRowMutate(payload, {
+          onSuccess: () => {
+            const newData = [...data];
+            const [movedItem] = newData.splice(sourceIndex, 1);
+            newData.splice(targetIndex, 0, movedItem);
+            setData(newData);
+            successToast('Row moved successfully');
+          },
+          onError: () => {
+            errorToast('Failed to move row');
+          }
+        });
       }
     } catch (err) {
       errorToast(`Failed to ${operation} row`);
@@ -215,12 +273,21 @@ export const useSheetData = (sheetId: string | undefined) => {
   };
 
   // Column Operations
-  const handleColumnOperation = async (operation: 'add' | 'update' | 'delete', params: {
+  const handleColumnOperation = async (operation: 'add' | 'update' | 'delete' | 'move', params: {
     index?: number,
-    newName?: string
+    newName?: string,
+    sourceIndex?: number,
+    targetIndex?: number
   }) => {
+
+    console.log({ canAddColumn, canUpdateColumnHeader, canUpdateSheet }, 'kaka')
     if (!canUpdateSheet) {
       errorToast('You do not have permission to modify columns');
+      return;
+    }
+  
+    if (!canAddColumn && operation === 'add') {
+      errorToast('You do not have permission to add columns');
       return;
     }
 
@@ -245,7 +312,7 @@ export const useSheetData = (sheetId: string | undefined) => {
         });
       } else if (operation === 'delete') {
         if (data[0].length <= 1) return;
-        
+
         const newColumnHeaders = columnHeaders.filter((_, i) => i !== params.index);
         const newData = data.map((row) => row.filter((_, i) => i !== params.index));
 
@@ -259,6 +326,18 @@ export const useSheetData = (sheetId: string | undefined) => {
           },
           onError: () => {
             errorToast('Failed to delete column');
+          }
+        });
+      } else if (operation === 'move') {
+        moveColumnsMutate({
+          sourceIndex: params.sourceIndex,
+          targetIndex: params.targetIndex
+        }, {
+          onSuccess: () => {
+            successToast('Column moved successfully');
+          },
+          onError: () => {
+            errorToast('Failed to move column');
           }
         });
       } else {
@@ -281,6 +360,7 @@ export const useSheetData = (sheetId: string | undefined) => {
       }
     } catch (err) {
       errorToast(`Failed to ${operation} column`);
+      console.log(err, 'EERRROR')
     }
   };
 
@@ -320,6 +400,11 @@ export const useSheetData = (sheetId: string | undefined) => {
       errorToast('You do not have permission to edit headers');
       return;
     }
+    if (!canUpdateColumnHeader) {
+      errorToast('You do not have permission to update column headers');
+      return;
+    }
+
 
     setIsLoading(true);
     try {
@@ -341,7 +426,7 @@ export const useSheetData = (sheetId: string | undefined) => {
       errorToast('You do not have permission to share this sheet');
       return;
     }
-    
+
     if (!userId) {
       errorToast('Please select a user to share with');
       return;
@@ -396,60 +481,64 @@ export const useSheetData = (sheetId: string | undefined) => {
   };
 
 
-const getColumnLabel = (index: number): string => {
-  let label = "";
-  while (index >= 0) {
-    label = String.fromCharCode((index % 26) + 65) + label;
-    index = Math.floor(index / 26) - 1;
-  }
-  return label;
-};
+  const getColumnLabel = (index: number): string => {
+    let label = "";
+    while (index >= 0) {
+      label = String.fromCharCode((index % 26) + 65) + label;
+      index = Math.floor(index / 26) - 1;
+    }
+    return label;
+  };
 
 
-const handleCellClick = (row: number, col: number) => {
-  if (!canUpdateSheet) {
-    errorToast('You do not have permission to edit this sheet');
-    return;
-  }
-  setEditingCell({ row, col });
-  setTempValue(data[row][col] || "");
-};
+  const handleCellClick = (row: number, col: number) => {
+    if (!canUpdateSheet) {
+      errorToast('You do not have permission to edit this sheet');
+      return;
+    }
+    setEditingCell({ row, col });
+    setTempValue(data[row][col] || "");
+  };
 
-const saveCell = async (row: number, col: number) => {
-  try {
-    await handleCellEdit(row, col, tempValue);
-    setEditingCell(null);
-  } catch (err) {
-    errorToast('Failed to update cell');
-  }
-};
-
-
-const handleHeaderClick = (colIndex: number) => {
-  if (!canUpdateSheet) {
-    errorToast('You do not have permission to edit column headers');
-    return;
-  }
-  setEditingHeader(colIndex);
-  setTempHeader(columnHeaders[colIndex]);
-};
+  const saveCell = async (row: number, col: number) => {
+    try {
+      await handleCellEdit(row, col, tempValue);
+      setEditingCell(null);
+    } catch (err) {
+      errorToast('Failed to update cell');
+    }
+  };
 
 
-const saveHeader = async (colIndex: number) => {
-  try {
-    await handleHeaderEdit(colIndex, tempHeader);
-    setEditingHeader(null);
-  } catch (err) {
-    errorToast('Failed to update header');
-  }
-};
+  const handleHeaderClick = (colIndex: number) => {
+    if (!canUpdateSheet) {
+      errorToast('You do not have permission to edit column headers');
+      return;
+    }
+    if (!canUpdateColumnHeader) {
+      errorToast('You do not have permission to update column headers');
+      return;
+    }
+    setEditingHeader(colIndex);
+    setTempHeader(columnHeaders[colIndex]);
+  };
+
+
+  const saveHeader = async (colIndex: number) => {
+    try {
+      await handleHeaderEdit(colIndex, tempHeader);
+      setEditingHeader(null);
+    } catch (err) {
+      errorToast('Failed to update header');
+    }
+  };
 
   return {
     // State
     data,
     columnHeaders,
     spreadsheetName,
-    users:usersData?.users || [],
+    users: usersData?.users || [],
     isLoading,
     error,
     canUpdateSheet,
@@ -467,6 +556,8 @@ const saveHeader = async (colIndex: number) => {
     setContextMenu,
     setIsShareModalOpen,
     setSelectedUser,
+    setColumnHeaders,
+    setData,
 
     // Operations
     handleCellEdit,
@@ -479,7 +570,7 @@ const saveHeader = async (colIndex: number) => {
     saveCell,
     handleHeaderClick,
     saveHeader,
-    
+
 
     // Helpers
     isStatusColumn,

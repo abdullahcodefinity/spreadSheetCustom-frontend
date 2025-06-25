@@ -11,8 +11,10 @@ const Url = {
   addNewRow: '/sheet-data',
   updateRow: (id: number, row: number) => `/sheet-data/${id}/position/${row}`,
   deleteRow: (id: number, row: number) => `/sheet-data/${id}/position/${row}`,
-
+  
   updateColumns: (id: number) => `/sheets/${id}/columns`,
+  moveColumns: (id: number) => `/sheets/${id}/columns/move`,
+  moveRow: (id: number) => `/sheet-data/${id}/move`,
 
 
 
