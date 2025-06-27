@@ -27,12 +27,12 @@ const useDelete = ({ URL, key, link }: DeleteParams) => {
     mutationFn: deleteData,
     onSuccess: (data: DeleteResponse) => {
       if (data.status === 1) {
-        successToast(data.data?.message || "Deleted successfully");
+        successToast( "Deleted successfully");
         queryClient.invalidateQueries({ queryKey: key, exact: false });
         if (link) router.push(link);
         setRefreshDelete(true);
       } else {
-        errorToast(data.data?.message || "Failed to delete");
+        errorToast( "Failed to delete");
       }
     },
     onError: (err: any) => {

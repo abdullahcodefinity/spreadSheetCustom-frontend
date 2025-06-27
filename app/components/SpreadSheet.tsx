@@ -644,7 +644,8 @@ export default function Spreadsheet() {
      setContextMenu={setContextMenu}
      //@ts-ignore
      handleRowOperation={handleRowOperation}
-     handleColumnpOperation={handleColumnOperation}
+     //@ts-ignore
+     handleColumnOperation={handleColumnOperation}
      columnHeaders={columnHeaders}
      getColumnLabel={getColumnLabel}
     />

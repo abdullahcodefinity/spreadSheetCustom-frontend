@@ -292,3 +292,13 @@ export interface Config {
 }
 
 
+
+// Type definitions for your backend data
+export type BackendSheetData = {
+  id: number;
+  spreadsheetId: number;
+  position: number;
+  row: string[];  // Changed from data object to row array
+  createdAt: string;
+  updatedAt: string;
+};
