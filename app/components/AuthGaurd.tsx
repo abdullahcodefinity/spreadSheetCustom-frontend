@@ -4,12 +4,8 @@ import { useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AuthContext } from '../context';
 import keys from '../common/keys';
+import { AuthGuardProps } from '../types';
 
-interface AuthGuardProps {
-  children: React.ReactNode;
-  requireAuth?: boolean; 
-  redirectTo?: string;
-}
 
 export default function AuthGuard({ 
   children, 
@@ -34,9 +30,17 @@ export default function AuthGuard({
 
 
     // Restrict access to users page for non-super admins
-    if (pathname === '/users' && userRole !== 'SuperAdmin') {
+    if (pathname === '/users'  && userRole !== 'SuperAdmin') {
       router.push('/sheet');
     }
+    // Restrict access to users page for non-super admins
+    if (pathname === '/key-value' && userRole !== 'SuperAdmin') {
+      router.push('/sheet');
+    }
+
+
+
+
   }, [requireAuth, redirectTo, router, pathname]);
 
 

@@ -1,14 +1,8 @@
 import { useContext } from "react";
 import { AuthContext } from "../context";
 import keys from "../common/keys";
+import { User } from "../types";
 
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role?: string;
-  [key: string]: any;
-}
 
 const useAuth = () => {
   const { token, setToken, currentUser, setCurrentUser } =

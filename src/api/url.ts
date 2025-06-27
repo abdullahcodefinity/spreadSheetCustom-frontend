@@ -8,15 +8,22 @@ const Url = {
   shareSheet: (id: number) => `/sheets/${id}/`,
   getSheet: (id: number) => `/sheets/${id}`,
 
+  //Row
   addNewRow: '/sheet-data',
   updateRow: (id: number, row: number) => `/sheet-data/${id}/position/${row}`,
   deleteRow: (id: number, row: number) => `/sheet-data/${id}/position/${row}`,
-  
+
+  //Column
   updateColumns: (id: number) => `/sheets/${id}/columns`,
   moveColumns: (id: number) => `/sheets/${id}/columns/move`,
   moveRow: (id: number) => `/sheet-data/${id}/move`,
 
-
+  //Value-Set
+  getAllValueSets: (search: string | null = null) =>
+    `value-sets?search=${search}`,
+  deleteValueSet: (id: number) => `value-sets/${id}`,
+  getValueSet: (id: number) => `/value-sets/${id}`,
+  attachValueDropdown: (id: number,) => `/sheets/${id}/columns/dropdown`,
 
   //Users
   getAllUsers: (search: string | null = null) =>

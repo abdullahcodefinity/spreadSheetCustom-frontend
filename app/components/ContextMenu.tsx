@@ -1,16 +1,5 @@
-interface ContextMenuProps {
-  contextMenu: {
-    x: number;
-    y: number;
-    row: number;
-    col: number;
-  } | null;
-  setContextMenu: (value: null) => void;
-  handleRowOperation: (operation: string, row: number) => void;
-  handleColumnOperation: (operation: string, params: { index: number, newName?: string }) => void;
-  columnHeaders: string[];
-  getColumnLabel: (index: number) => string;
-}
+import { ContextMenuProps } from "../types";
+
 
 export default function ContextMenu({
   contextMenu,

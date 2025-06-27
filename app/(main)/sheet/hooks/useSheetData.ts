@@ -8,24 +8,14 @@ import usePostData from '@/app/hooks/ usePostData';
 import { Url } from '@/src/api';
 import useUpdateData from '@/app/hooks/ useUpdateData';
 import useFetchData from '@/app/hooks/useFetchData';
+import useGetById from '@/app/hooks/useGetById';
+import { BackendSpreadsheetData, ContextMenuTarget } from '@/app/types';
 
-interface BackendSpreadsheetData {
-  columns: string[];
-  sheetData: {
-    position: number;
-    row: string[];
-  }[];
-}
 
-type ContextMenuTarget = {
-  row: number;
-  col: number;
-  x: number;
-  y: number;
+// Add this type for dropdown columns
+type ColumnDropdownMap = {
+  [columnName: string]: string[]; // columnName -> dropdown options
 };
-
-
-export const STATUS_OPTIONS = ['Not Started', 'In Progress', 'Completed', 'On Hold'];
 
 export const useSheetData = (sheetId: string | undefined) => {
   const { successToast, errorToast } = useToast();
@@ -41,6 +31,7 @@ export const useSheetData = (sheetId: string | undefined) => {
   const [canUpdateColumnHeader, setCanUpdateColumnHeader] = useState(false)
   const [canAddColumn, setCanAddColumn] = useState(false)
 
+
   const [canUpdateSheet, setCanUpdateSheet] = useState(false);
   const [rowIndex, setRowIndex] = useState<number>(0);
   const [editingCell, setEditingCell] = useState<{ row: number; col: number } | null>(null);
@@ -51,6 +42,8 @@ export const useSheetData = (sheetId: string | undefined) => {
   const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
+
+  const [dropdownColumns, setDropdownColumns] = useState<ColumnDropdownMap>({});
 
   // API Mutations
   const { mutate: postRow } = usePostData({
@@ -66,6 +59,15 @@ export const useSheetData = (sheetId: string | undefined) => {
     link: '',
     formData: false,
   });
+
+
+  const { data: valueSets = [], isLoading: isLoadingData, status } = useFetchData({
+    URL: Url.getAllValueSets(),
+    key: ['valueSets'],
+    enabled: true
+  });
+
+
 
   const { mutate: moveRowMutate } = useUpdateData({
     URL: Url.moveRow(Number(sheetId)),
@@ -93,6 +95,13 @@ export const useSheetData = (sheetId: string | undefined) => {
     formData: false,
   });
 
+  const { mutate: attachDropDown ,refreshUpdate:DropUpdate} = useUpdateData({
+    URL: Url.attachValueDropdown(Number(sheetId)),
+    link: '',
+    isUpdate: false,
+    formData: false,
+  });
+
 
   // Update sheet (for sharing)
   const { mutate: updateSheet } = useUpdateData({
@@ -103,8 +112,13 @@ export const useSheetData = (sheetId: string | undefined) => {
   });
 
 
+
+
+
   // Convert backend data to spreadsheet format
-  const convertBackendDataToSpreadsheet = (backendData: BackendSpreadsheetData) => {
+  const convertBackendDataToSpreadsheet = (
+    backendData: BackendSpreadsheetData & { columnDropdowns?: any[] }
+  ) => {
     const headers = backendData.columns;
     const rows: string[][] = [];
 
@@ -133,13 +147,23 @@ export const useSheetData = (sheetId: string | undefined) => {
       }
     });
 
-    return { headers, rows };
+    // Extract dropdown columns
+    const dropdownMap: ColumnDropdownMap = {};
+    if (backendData.columnDropdowns) {
+      backendData.columnDropdowns.forEach((dropdown) => {
+        if (dropdown.columnName && dropdown.valueSet?.values) {
+          dropdownMap[dropdown.columnName] = dropdown.valueSet.values;
+        }
+      });
+    }
+
+    return { headers, rows, dropdownMap };
   };
 
   // Fetch initial sheet data
   const { data: sheetData, isLoading: isSheetLoading } = useFetchData({
     URL: Url.getSheet(Number(sheetId)),
-    key: ['sheet'],
+    key: ['sheet',DropUpdate],
     enabled: !!sheetId
   });
 
@@ -153,14 +177,15 @@ export const useSheetData = (sheetId: string | undefined) => {
 
   useEffect(() => {
     if (sheetData) {
-      const { headers, rows } = convertBackendDataToSpreadsheet(sheetData);
+      // Pass columnDropdowns to the converter
+      const { headers, rows, dropdownMap } = convertBackendDataToSpreadsheet(sheetData);
       setData(rows);
       setColumnHeaders(headers);
       setSpreadsheetName(sheetData.name);
       setCanUpdateSheet(checkPermissions(sheetData).hasUpdatePermission);
       setCanUpdateColumnHeader(checkPermissions(sheetData).hasUpdateColumnPermission);
-      setCanAddColumn(checkPermissions(sheetData).hasAddColumnPermission)
-
+      setCanAddColumn(checkPermissions(sheetData).hasAddColumnPermission);
+      setDropdownColumns(dropdownMap); // <-- set dropdown columns
     }
   }, [sheetData]);
 
@@ -285,7 +310,7 @@ export const useSheetData = (sheetId: string | undefined) => {
       errorToast('You do not have permission to modify columns');
       return;
     }
-  
+
     if (!canAddColumn && operation === 'add') {
       errorToast('You do not have permission to add columns');
       return;
@@ -466,10 +491,7 @@ export const useSheetData = (sheetId: string | undefined) => {
     link.click();
   };
 
-  // Status Column Helpers
-  const isStatusColumn = (header: string): boolean => {
-    return header.toLowerCase().includes('status');
-  };
+
 
   const getStatusColor = (status: string): string => {
     switch (status?.toLowerCase()) {
@@ -533,6 +555,15 @@ export const useSheetData = (sheetId: string | undefined) => {
     }
   };
 
+
+
+  const handleAttachDropDown = (columnName: string, ValueID: number) => {
+
+    attachDropDown({ "valueSetId": ValueID, columnName })
+  }
+
+
+
   return {
     // State
     data,
@@ -546,13 +577,17 @@ export const useSheetData = (sheetId: string | undefined) => {
     tempValue,
     editingHeader,
     tempHeader,
+    valueSets,
+    dropdownColumns,
+    contextMenu,
+    isShareModalOpen,
+    selectedUser,
+    canUpdateColumnHeader,
+    canAddColumn,
     setEditingHeader,
     setTempHeader,
     setEditingCell,
     setTempValue,
-    contextMenu,
-    isShareModalOpen,
-    selectedUser,
     setContextMenu,
     setIsShareModalOpen,
     setSelectedUser,
@@ -570,12 +605,11 @@ export const useSheetData = (sheetId: string | undefined) => {
     saveCell,
     handleHeaderClick,
     saveHeader,
-
-
+    handleAttachDropDown,
     // Helpers
-    isStatusColumn,
-    getStatusColor,
+
+
     getColumnLabel,
-    STATUS_OPTIONS
+
   };
 };

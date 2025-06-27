@@ -1,13 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { KeyValue } from '../types';
 import { X, Plus, Trash2, Key } from 'lucide-react';
+import { KeyValueModalProps } from '@/app/types';
 
-interface KeyValueModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  keyValue?: KeyValue | null;
-  onSave: (keyValue: Omit<KeyValue, 'id' | 'createdAt' | 'lastModified'>) => void;
-}
+
 
 const KeyValueModal: React.FC<KeyValueModalProps> = ({
   isOpen,
@@ -62,7 +57,6 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
       onSave({
         name: name.trim(),
         values: filteredValues,
-        createdBy: 'Current User' // In a real app, this would come from auth
       });
       onClose();
     }
@@ -76,7 +70,7 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-pink-500 rounded-lg flex items-center justify-center">
               <Key className="w-5 h-5 text-white" />
             </div>
             <div>
@@ -107,7 +101,7 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter key name (e.g., Department Categories)"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
 
@@ -125,12 +119,12 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
                 onChange={(e) => setCurrentValue(e.target.value)}
                 onKeyPress={handleKeyPress}
                 placeholder="Enter a value and press Enter"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
               <button
                 onClick={handleAddValue}
                 disabled={!currentValue.trim() || values.includes(currentValue.trim())}
-                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
               >
                 <Plus className="w-4 h-4" />
                 <span>Add</span>
@@ -145,7 +139,7 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
                     type="text"
                     value={value}
                     onChange={(e) => handleValueChange(index, e.target.value)}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-colors"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   />
                   <button
                     onClick={() => handleRemoveValue(index)}
@@ -172,12 +166,12 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Preview
               </label>
-              <div className="p-4 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg">
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-pink-50 rounded-lg">
                 <div className="flex flex-wrap gap-2">
                   {values.filter(v => v.trim()).map((value, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800"
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gradient-to-r from-blue-100 to-pink-100 text-blue-800"
                     >
                       {value}
                     </span>
@@ -200,7 +194,7 @@ const KeyValueModal: React.FC<KeyValueModalProps> = ({
             <button
               onClick={handleSave}
               disabled={!name.trim() || !values.some(v => v.trim())}
-              className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-pink-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-pink-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isEditing ? 'Update' : 'Create'} Key-Value Pair
             </button>

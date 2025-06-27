@@ -50,22 +50,22 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <LoaderContext.Provider value={{ loading, setLoading }}>
+      <body className={inter.className} suppressHydrationWarning>
+        {/* <LoaderContext.Provider value={{ loading, setLoading }}> */}
           <AuthContext.Provider
             value={{ currentUser, token: token || undefined, setToken, setCurrentUser }}
           >
             <QueryClientProvider client={queryClient}>
-              <Loader visible={loading} />
-              <Toaster position="top-right"  /> 
+              {/* <Loader visible={loading} /> */}
               {isInitialized ? children : (
                 <div className="min-h-screen flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               )}
+              <Toaster position="top-right"  /> 
             </QueryClientProvider>
           </AuthContext.Provider>
-        </LoaderContext.Provider>
+        {/* </LoaderContext.Provider> */}
       </body>
     </html>
   );

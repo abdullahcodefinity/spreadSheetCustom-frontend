@@ -6,26 +6,8 @@ import usePostData from '@/app/hooks/ usePostData';
 import useUpdateData from '@/app/hooks/ useUpdateData';
 import useToast from '@/app/hooks/useToast';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ApiError, SheetPermission, UserFormData } from '@/app/types';
 
-interface SheetPermission {
-  action: 'create' | 'read' | 'update' | 'delete' | 'addColumn' | 'updateColumnHeader';
-  subject: 'Sheet';
-}
-
-interface UserFormData {
-  email: string;
-  password: string;
-  name: string;
-  role: string;
-  permissions: SheetPermission[];
-}
-
-interface ApiError {
-  message: string;
-  errors?: {
-    [key: string]: string[];
-  };
-}
 
 export default function UserManagement({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);

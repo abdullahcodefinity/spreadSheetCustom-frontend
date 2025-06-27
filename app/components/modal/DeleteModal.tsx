@@ -1,3 +1,4 @@
+import { DeleteModalProps } from "@/app/types";
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -8,13 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
-interface DeleteModalProps {
-  isShow: boolean;
-  setIsShow: (show: boolean) => void;
-  title: string;
-  description: string;
-  agreeFunction: () => void;
-}
 
 export function DeleteModal({
   isShow,

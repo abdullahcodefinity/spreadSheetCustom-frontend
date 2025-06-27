@@ -3,19 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Network } from "@/src/api";
 
 import { useState } from "react";
+import { FetchDataParams, FetchResponse } from "../types";
 
-interface FetchDataParams {
-  URL: string;
-  key: (string | object | boolean)[];
-  page?: number;
-  enabled?: boolean;
-}
-
-interface FetchResponse {
-  data: any;
-  isLoading: boolean;
-  status?: number | null;
-}
 
 const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchResponse => {
   const [status, setStatus] = useState<number | null>(null)

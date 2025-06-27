@@ -1,7 +1,4 @@
-interface CellOptionsProps {
-  position: { top: number; left: number } | null;
-  onClose: () => void;
-}
+import { CellOptionsProps } from "../types";
 
 export default function CellOptions({ position, onClose }: CellOptionsProps) {
   if (!position) return null;

@@ -1,11 +1,8 @@
 // useDeviceType.ts
 import { useState, useEffect } from 'react';
+import { DeviceType } from '../types';
 
-interface DeviceType {
-  mobile?: boolean;
-  tab?: boolean;
-  monitor?: boolean;
-}
+
 
 const useDeviceType = (): DeviceType => {
   const [deviceType, setDeviceType] = useState<DeviceType>({});

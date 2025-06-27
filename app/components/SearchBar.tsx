@@ -1,8 +1,5 @@
-interface SearchBarProps {
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-}
+import { SearchBarProps } from "../types";
+
 
 export default function SearchBar({ value, onChange, placeholder }: SearchBarProps) {
   return (

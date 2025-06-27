@@ -5,22 +5,7 @@ import { multipartConfig, Network } from "@/src/api";
 import useToast from "./useToast";
 import useAuth from "./useAuth";
 import { useState } from "react";
-
-interface UpdateDataParams {
-  URL: string;
-  link: string;
-  isUpdate?: boolean;
-  formData?: boolean;
-}
-
-interface UpdateResponse {
-  data: {
-    message?: string;
-    error?: string;
-    user?: any;
-  };
-  status: 0 | 1;
-}
+import { UpdateDataParams, UpdateResponse } from "../types";
 
 const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: UpdateDataParams) => {
   const [refreshUpdate, setRefreshUpdate] = useState(false);

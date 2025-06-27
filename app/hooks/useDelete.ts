@@ -4,20 +4,8 @@ import useToast from "./useToast";
 import { useRouter } from "next/navigation";
 import useLoader from "./useLoader";
 import { useState } from "react";
+import { DeleteParams, DeleteResponse } from "../types";
 
-interface DeleteParams {
-  URL: string; // base URL like "/sheets"
-  key: (string | object | boolean)[];
-  link?: string;
-}
-
-interface DeleteResponse {
-  data: {
-    message?: string;
-    error?: string;
-  };
-  status: 0 | 1;
-}
 
 const useDelete = ({ URL, key, link }: DeleteParams) => {
   const { successToast, errorToast } = useToast();

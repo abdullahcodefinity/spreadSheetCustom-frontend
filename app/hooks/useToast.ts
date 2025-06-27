@@ -1,10 +1,5 @@
 import toast, { ToastOptions } from "react-hot-toast";
-
-interface ToastHook {
-  successToast: (message: string) => void;
-  errorToast: (message: string) => void;
-  warningToast: (message: string) => void;
-}
+import { ToastHook } from "../types";
 
 const useToast = (): ToastHook => {
   const successToast = (message: string): void => {

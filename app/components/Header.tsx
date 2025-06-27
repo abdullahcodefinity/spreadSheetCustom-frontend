@@ -6,11 +6,10 @@ import { useRouter } from 'next/navigation';
 import useToast from '@/app/hooks/useToast';
 import useAuth from '../hooks/useAuth';
 import keys from '../common/keys';
+import { HeaderProps } from '../types';
 
 
-interface HeaderProps {
-  title?: string;
-}
+
 
 export default function Header({ title = 'SpreadSheet App' }: HeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);

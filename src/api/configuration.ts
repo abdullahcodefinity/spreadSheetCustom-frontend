@@ -1,5 +1,6 @@
 import { create, ApiResponse, ApisauceInstance } from "apisauce";
 import keys from "@/app/common/keys";
+import { Config } from "@/app/types";
 
 const baseURL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
@@ -28,16 +29,6 @@ client.addAsyncRequestTransform(async (request) => {
   }
 });
 
-interface Headers {
-  Authorization: string;
-  Accept: string;
-  "Content-Type"?: string;
-  responseType?: string;
-}
-
-interface Config {
-  headers: Headers;
-}
 
 export const config = async (): Promise<Config> => {
   const token = localStorage.getItem(keys.jwttoken);

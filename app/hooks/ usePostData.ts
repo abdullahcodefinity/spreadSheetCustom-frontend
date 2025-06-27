@@ -5,22 +5,8 @@ import useLoader from "./useLoader";
 import useToast from "./useToast";
 import { config, multipartConfig,Network } from "@/src/api";
 import { useState } from "react";
+import { PostDataParams, PostResponse } from "../types";
 
-interface PostResponse {
-  data: {
-    message?: string;
-    error?: string;
-  };
-  status: 0 | 1;
-}
-
-interface PostDataParams {
-  URL: string;
-  mode: 'post' | 'put' | 'patch';
-  link: string;
-  formData?: boolean;
-  isNavigate?: boolean;
-}
 
 const usePostData = ({
   URL,

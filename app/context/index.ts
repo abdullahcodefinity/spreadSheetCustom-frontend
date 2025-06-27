@@ -1,16 +1,6 @@
 import { createContext } from "react";
+import { AuthContextType, LoaderContextType } from "../types";
 
-interface AuthContextType {
-  token?: string;
-  setToken: (token: string) => void;
-  currentUser?: any;
-  setCurrentUser: (user: any) => void;
-}
-
-interface LoaderContextType {
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-}
 
 export const AuthContext = createContext<AuthContextType>({
   token: undefined,

@@ -3,38 +3,9 @@
 import Link from "next/link";
 import { DeleteModal } from "./modal/DeleteModal";
 import { useSheetList } from "../(main)/sheet/hooks/useSheetList";
+import { Sheet } from "../types";
 
 
-interface SheetData {
-  id: number;
-  spreadsheetId: number;
-  position: number;
-  row: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface UserSheet {
-  id: number;
-  userId: number;
-  sheetId: number;
-  role: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-}
-
-interface Sheet {
-  id: number;
-  name: string;
-  columns: string[];
-  createdAt: string;
-  updatedAt: string;
-  sheetData: SheetData[];
-  userSheets: UserSheet[];
-}
 
 export default function SheetList() {
   const {
@@ -99,26 +70,8 @@ export default function SheetList() {
           </button>
         )}
       </div>
-      {!sheets || sheets.length === 0 && !isAddingNew ?
-        <>
-          <div className="p-4 py-10 text-center">
-            <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-              <p className="text-gray-700">{'No sheets found in the list'}</p>
-            </div>
-          </div>
-        </>
-        :
-        <>
-          <div className="p-4 py-10">
-            <DeleteModal
-              agreeFunction={handleDelete}
-              title="Delete User?"
-              description="Are you sure you want to delete User?"
-              isShow={isShow}
-              setIsShow={setIsShow}
-            />
-            {/* Search Bar */}
-            <div className="mb-4">
+       {/* Search Bar */}
+       <div className="mb-4">
               <div className="relative">
                 <input
                   type="text"
@@ -134,6 +87,28 @@ export default function SheetList() {
                 </div>
               </div>
             </div>
+      {!sheets || sheets.length === 0 && !isAddingNew ?
+        <>
+          <div className="p-4 py-10">
+            <div className="p-4 py-10 text-center">
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                <p className="text-gray-700">{'No sheets found in the list'}</p>
+              </div>
+            </div>
+          </div>
+
+        </>
+        :
+        <>
+          <div className="p-4 py-10">
+            <DeleteModal
+              agreeFunction={handleDelete}
+              title="Delete User?"
+              description="Are you sure you want to delete User?"
+              isShow={isShow}
+              setIsShow={setIsShow}
+            />
+           
 
             {isAddingNew && (
               <div className="mb-4 flex gap-2 items-center bg-white p-3 rounded border border-gray-200">

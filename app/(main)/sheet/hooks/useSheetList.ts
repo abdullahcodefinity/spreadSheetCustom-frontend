@@ -9,37 +9,9 @@ import useDebounce from "@/app/utils/utility";
 import useAuth from "@/app/hooks/useAuth";
 import usePostData from "@/app/hooks/ usePostData";
 import useUpdateData from "@/app/hooks/ useUpdateData";
+import { Sheet } from "@/app/types";
 
-interface SheetData {
-  id: number;
-  spreadsheetId: number;
-  position: number;
-  row: string[];
-  createdAt: string;
-  updatedAt: string;
-}
 
-interface UserSheet {
-  id: number;
-  userId: number;
-  sheetId: number;
-  role: string;
-  user: {
-    id: number;
-    name: string;
-    email: string;
-  };
-}
-
-interface Sheet {
-  id: number;
-  name: string;
-  columns: string[];
-  createdAt: string;
-  updatedAt: string;
-  sheetData: SheetData[];
-  userSheets: UserSheet[];
-}
 
 export const useSheetList = () => {
 

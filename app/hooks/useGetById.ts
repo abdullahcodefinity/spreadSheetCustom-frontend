@@ -2,18 +2,10 @@
 import { useQuery } from "@tanstack/react-query";
 import useLoader from "./useLoader";
 import { Network } from "@/src/api";
+import { GetByIdParams, GetByIdResponse } from "../types";
 
 
-interface GetByIdParams {
-  URL: string;
-  key: string[];
-  enabled?: boolean;
-}
 
-interface GetByIdResponse {
-  data: any;
-  isLoading: boolean;
-}
 
 const useGetById = ({ URL, key, enabled = true }: GetByIdParams): GetByIdResponse => {
   const { toggleLoader } = useLoader();
