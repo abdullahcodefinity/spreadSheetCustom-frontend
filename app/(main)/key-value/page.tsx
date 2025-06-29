@@ -39,14 +39,14 @@ export default function KeyValuePage() {
     });
 
     // Delete
-    const { mutate: deleteValueSet } = useDelete({
+    const { mutate: deleteValueSet,refreshDelete } = useDelete({
         URL: Url.getValueSet(Number(deletedId)),
         key: ['valueSets'],
     });
 
     const { data: valueSets = [], isLoading: isLoadingData, status } = useFetchData({
         URL: Url.getAllValueSets(),
-        key: ['valueSets', refreshUpdate, refresh],
+        key: ['valueSets', refreshUpdate, refresh,refreshDelete],
         enabled: true
     });
 

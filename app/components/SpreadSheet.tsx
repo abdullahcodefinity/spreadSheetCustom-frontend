@@ -141,7 +141,6 @@ export default function Spreadsheet() {
   handleShare,
   exportToCSV,
   getColumnLabel,
-
  } = useSheetData(sheetId as string);
 
  const [headerMenu, setHeaderMenu] = useState<{
@@ -654,15 +653,27 @@ export default function Spreadsheet() {
       className="fixed z-50 bg-white border rounded shadow-lg"
       style={{ left: headerMenu.x - 70, top: headerMenu.y }}
      >
-      <button
-       className="block w-full px-4 py-2 text-left hover:bg-gray-100"
-       onClick={() => {
-        setHeaderMenu(null);
-        setDropdownModal({ colIndex: headerMenu.colIndex });
-       }}
-      >
-       Attach Dropdown
-      </button>
+      {dropdownColumns && Object.keys(dropdownColumns).includes(columnHeaders[headerMenu.colIndex]) ? (
+       <button
+        className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+        onClick={() => {
+         setHeaderMenu(null);
+        handleAttachDropDown(columnHeaders[headerMenu.colIndex], undefined, "remove")
+        }}
+       >
+        Remove Dropdown
+       </button>
+      ) : (
+       <button
+        className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+        onClick={() => {
+         setHeaderMenu(null);
+         setDropdownModal({ colIndex: headerMenu.colIndex });
+        }}
+       >
+        Attach Dropdown
+       </button>
+      )}
      </div>
     )}
     {dropdownModal && (
@@ -680,9 +691,10 @@ export default function Spreadsheet() {
            onClick={() => {
             handleAttachDropDown(
              columnHeaders[dropdownModal.colIndex],
-             Number(kv.id)
+             Number(kv.id),
+             "attach"
             );
-         
+
             setDropdownModal(null);
            }}
           >

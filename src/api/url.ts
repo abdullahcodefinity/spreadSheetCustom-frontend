@@ -24,6 +24,7 @@ const Url = {
   deleteValueSet: (id: number) => `value-sets/${id}`,
   getValueSet: (id: number) => `/value-sets/${id}`,
   attachValueDropdown: (id: number,) => `/sheets/${id}/columns/dropdown`,
+  removeValueDropdown: (id: number,) => `/sheets/${id}/columns/dropdown/remove`,
 
   //Users
   getAllUsers: (search: string | null = null) =>
