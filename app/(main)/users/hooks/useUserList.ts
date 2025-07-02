@@ -3,15 +3,20 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dayjs from "dayjs";
-import useToast from "@/app/hooks/useToast";
+
 import useFetchData from "@/app/hooks/useFetchData";
 import useDelete from "@/app/hooks/useDelete";
 import { DeleteModalState, SheetPermission, User } from "@/app/types";
-
+import useUpdateData from "@/app/hooks/ useUpdateData";
+import { Url } from "@/src/api";
 
 export const useUserList = () => {
  const router = useRouter();
-
+ const [sheetId, setSheetId] = useState<number>();
+ const [sheetModal, setSheetModal] = useState({
+  state: false,
+  selectedUser: null,
+ });
  const [searchQuery, setSearchQuery] = useState("");
  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
  const [deleteModal, setDeleteModal] = useState<DeleteModalState>({
@@ -29,10 +34,25 @@ export const useUserList = () => {
   key: ["users"],
  });
 
+
+ const { mutate: removeAccess,refreshUpdate:refreshRemoveAccess } = useUpdateData({
+  URL: Url.removeSheetAccess(Number(sheetId)),
+  link: "",
+  isUpdate: false,
+  formData: false,
+ });
+
+ // Update sheet (for sharing)
+ const { mutate: updateSheetPermission,refreshUpdate } = useUpdateData({
+  URL: Url.updateSheetPermission(Number(sheetId)),
+  link: "",
+  isUpdate: false,
+  formData: false,
+ });
+
  const { data: usersData, isLoading } = useFetchData({
-  URL: "/auth/users",
-  key: ["users", refreshDelete],
-  enabled: true,
+  URL: Url.getAllUsers(),
+  key: ["users", refreshDelete,refreshUpdate,refreshRemoveAccess],
  });
 
  const users = usersData?.users || [];
@@ -56,6 +76,9 @@ export const useUserList = () => {
   router.push(`/users/${userId}?mode=edit`);
  };
 
+ 
+
+
  const handleDelete = (userId: number, userName: string) => {
   setDeleteModal({
    isShow: true,
@@ -71,7 +94,6 @@ export const useUserList = () => {
  };
 
  const getPermissionLabel = (permission: SheetPermission) => {
-  console.log("hello jee", permission);
   const actionMap: Record<string, string> = {
    create: "Create",
    read: "View",
@@ -87,18 +109,46 @@ export const useUserList = () => {
   return dayjs(dateString).format("DD/MM/YYYY");
  };
 
+
+ const handleRemoveAccess = (
+  sheetId: number
+ ) => {
+  console.log(sheetId,'SHEETUD')
+  setSheetId(Number(sheetId));
+  removeAccess({userId:sheetModal.selectedUser?.id || 0})
+    setSheetModal({state:false,selectedUser:null})
+ };
+
+ const handleUpdateSheetPermissions = async ({
+  sheetId,
+  permissions,
+ }: {
+  sheetId: number;
+  permissions: string[];
+ }) => {
+  setSheetId(Number(sheetId));
+  updateSheetPermission({
+   userId: sheetModal.selectedUser?.id || 0,
+   permissions,
+  });
+ };
+
  return {
   searchQuery,
+  sheetModal,
   setSearchQuery,
+  handleUpdateSheetPermissions,
   filteredUsers,
   deleteModal,
   setDeleteModal,
   isDeleting,
   isLoading,
+  setSheetModal,
   handleEdit,
   handleDelete,
   confirmDelete,
   getPermissionLabel,
   formatDate,
+  handleRemoveAccess,
  };
 };

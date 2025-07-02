@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useToast from "@/app/hooks/useToast";
 import useAuth from "@/app/hooks/useAuth";
@@ -45,6 +45,12 @@ export const useSheetData = (sheetId: string | undefined) => {
  const [selectedUser, setSelectedUser] = useState<number | null>(null);
 
  const [dropdownColumns, setDropdownColumns] = useState<ColumnDropdownMap>({});
+
+ const [pendingScrollRestore, setPendingScrollRestore] = useState(false);
+ const lastScrollTop = useRef(0);
+
+ // Add missing refs and state
+ const tableContainerRef = useRef<HTMLDivElement | null>(null);
 
  // API Mutations
  const { mutate: postRow } = usePostData({
@@ -104,14 +110,13 @@ export const useSheetData = (sheetId: string | undefined) => {
   formData: false,
  });
 
- const { mutate: removeDropDown, refreshUpdate: DropRemoveUpdate } = useUpdateData({
-  URL: Url.removeValueDropdown(Number(sheetId)),
-  link: "",
-  isUpdate: false,
-  formData: false,
- });
-
- 
+ const { mutate: removeDropDown, refreshUpdate: DropRemoveUpdate } =
+  useUpdateData({
+   URL: Url.removeValueDropdown(Number(sheetId)),
+   link: "",
+   isUpdate: false,
+   formData: false,
+  });
 
  // Update sheet (for sharing)
  const { mutate: updateSheet } = useUpdateData({
@@ -171,7 +176,7 @@ export const useSheetData = (sheetId: string | undefined) => {
  // Fetch initial sheet data
  const { data: sheetData, isLoading: isSheetLoading } = useFetchData({
   URL: Url.getSheet(Number(sheetId)),
-  key: ["sheet", DropUpdate,DropRemoveUpdate],
+  key: ["sheet", DropUpdate, DropRemoveUpdate],
   enabled: !!sheetId,
  });
 
@@ -181,6 +186,8 @@ export const useSheetData = (sheetId: string | undefined) => {
   key: ["users"],
   enabled: !!sheetId,
  });
+
+ console.log(sheetData,'SheeetDATA::::>>')
 
  useEffect(() => {
   if (sheetData) {
@@ -339,7 +346,6 @@ export const useSheetData = (sheetId: string | undefined) => {
    targetIndex?: number;
   }
  ) => {
-
   if (!canUpdateSheet) {
    errorToast("You do not have permission to modify columns");
    return;
@@ -499,20 +505,17 @@ export const useSheetData = (sheetId: string | undefined) => {
  };
 
  // Share Operations
- const handleShare = async (userId: number | null) => {
+ const handleShare = async (payload: {
+  users: { userId: number; role: string }[];
+  permissions: string[];
+ }) => {
   if (!canUpdateSheet) {
    errorToast("You do not have permission to share this sheet");
    return;
   }
 
-  if (!userId) {
-   errorToast("Please select a user to share with");
-   return;
-  }
-
   setIsLoading(true);
   try {
-   const payload = { name: spreadsheetName, ownerId: userId };
    updateSheet(payload, {
     onSuccess: () => {
      successToast("Sheet shared successfully");
@@ -611,12 +614,27 @@ export const useSheetData = (sheetId: string | undefined) => {
   ValueID?: number,
   operation?: "attach" | "remove"
  ) => {
-  if(operation==='attach')
-  attachDropDown({ valueSetId: ValueID, columnName })
-else if(operation==='remove'){
-  removeDropDown({columnName})
-}
+  if (operation === "attach")
+   attachDropDown({ valueSetId: ValueID, columnName });
+  else if (operation === "remove") {
+   removeDropDown({ columnName });
+  }
  };
+
+ const handleCellClickWithScroll = (row: number, col: number) => {
+  if (tableContainerRef.current) {
+   lastScrollTop.current = tableContainerRef.current.scrollTop;
+  }
+  handleCellClick(row, col);
+  setPendingScrollRestore(true);
+ };
+
+ useLayoutEffect(() => {
+  if (pendingScrollRestore && tableContainerRef.current) {
+   tableContainerRef.current.scrollTop = lastScrollTop.current;
+   setPendingScrollRestore(false);
+  }
+ }, [data, editingCell, pendingScrollRestore]);
 
  return {
   // State
@@ -655,7 +673,7 @@ else if(operation==='remove'){
   handleColumnOperation,
   handleShare,
   exportToCSV,
-  handleCellClick,
+  handleCellClickWithScroll,
   saveCell,
   handleHeaderClick,
   saveHeader,

@@ -5,8 +5,11 @@ const Url = {
     `sheets?search=${search}`,
   createSheet: "sheets",
   deleteSheet: (id: number) => `sheets/${id}`,
-  shareSheet: (id: number) => `/sheets/${id}/`,
+  shareSheet: (id: number) => `/sheets/${id}/share`,
   getSheet: (id: number) => `/sheets/${id}`,
+  updateSheetPermission: (id: number) => `/sheets/${id}/permissions`,
+  removeSheetAccess: (id: number) => `/sheets/remove-access/${id}`,
+
 
   //Row
   addNewRow: '/sheet-data',

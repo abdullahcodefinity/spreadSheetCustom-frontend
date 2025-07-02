@@ -114,11 +114,7 @@ export const useSheetList = () => {
     }
   };
 
-  const permissions = {
-    hasCreatePermission: checkPermission(currentUser, 'create', 'sheet'),
-    hasUpdatePermission: checkPermission(currentUser, 'update', 'sheet'),
-    hasDeletePermission: checkPermission(currentUser, 'delete', 'sheet')
-  };
+
 
   return {
     sheets: sheetsData,
@@ -143,6 +139,6 @@ export const useSheetList = () => {
     handleDelete,
     handleSave,
     handleAddNewSheet,
-    permissions
+
   };
 };

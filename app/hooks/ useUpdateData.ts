@@ -41,7 +41,8 @@ const useUpdateData = ({ URL, link, isUpdate = false, formData = false }: Update
         if (isUpdate) {
           updateUser(data.data.user);
         }
-        setRefreshUpdate(true);
+        console.log("refreshing>>>")
+        setRefreshUpdate(!refreshUpdate);
         router.push(link);
       } else {
         // Only call errorToast if message exists

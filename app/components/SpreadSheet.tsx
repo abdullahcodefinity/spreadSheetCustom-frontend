@@ -21,6 +21,7 @@ import useDeviceType from "@/app/hooks/useDeviceType";
 import { useSheetData } from "../(main)/sheet/hooks/useSheetData";
 import { useParams, useRouter } from "next/navigation";
 import ContextMenu from "./ContextMenu";
+import ShareModal from "./modal/ShareModal";
 
 function SortableHeader({ id, children, ...props }: any) {
  const {
@@ -102,6 +103,7 @@ export default function Spreadsheet() {
  const router = useRouter();
  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
  const preventSingleClickRef = useRef(false);
+ const tableContainerRef = useRef<HTMLDivElement>(null);
 
  // Use the enhanced useSheetData hook that contains all the business logic
  const {
@@ -135,7 +137,7 @@ export default function Spreadsheet() {
   saveCell,
   saveHeader,
   handleHeaderClick,
-  handleCellClick,
+  handleCellClickWithScroll,
   handleRowOperation,
   handleColumnOperation,
   handleShare,
@@ -210,6 +212,34 @@ export default function Spreadsheet() {
   }
  };
 
+ useEffect(() => {
+  const handleScroll = () => {
+   const container = tableContainerRef.current;
+   if (!container) return;
+
+   // Check if scrolled to the bottom
+   if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
+    // Log scroll properties
+    console.log("Scrolled to bottom!");
+    console.log({
+     scrollTop: container.scrollTop,
+     scrollHeight: container.scrollHeight,
+     clientHeight: container.clientHeight,
+    });
+   }
+  };
+
+  const container = tableContainerRef.current;
+  if (container) {
+   container.addEventListener("scroll", handleScroll);
+  }
+  return () => {
+   if (container) {
+    container.removeEventListener("scroll", handleScroll);
+   }
+  };
+ }, []);
+
  return (
   <>
    <div className="p-6 space-y-4 py-10 relative">
@@ -280,65 +310,15 @@ export default function Spreadsheet() {
      </div>
     </div>
 
-    {/* Share Modal */}
-    {isShareModalOpen && (
-     <div
-      style={{ marginTop: "0px" }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-     >
-      <div className="bg-white rounded-lg p-6 w-96">
-       <div className="flex justify-between items-center mb-4">
-        <h3 className="text-lg font-semibold">Share Sheet</h3>
-        <button
-         onClick={() => setIsShareModalOpen(false)}
-         className="text-gray-500 hover:text-gray-700"
-        >
-         ✕
-        </button>
-       </div>
+    
 
-       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-         Select User
-        </label>
-        <select
-         value={selectedUser || ""}
-         onChange={(e) => setSelectedUser(Number(e.target.value))}
-         className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-         <option value="">Select a user</option>
-         {users?.map((user: { id: number; name: string }) => (
-          <option key={user.id} value={user.id}>
-           {user.name}
-          </option>
-         ))}
-        </select>
-       </div>
-
-       <div className="flex justify-end gap-2">
-        <button
-         onClick={() => setIsShareModalOpen(false)}
-         className="px-4 py-2 text-gray-600 hover:text-gray-800"
-        >
-         Cancel
-        </button>
-        <button
-         onClick={() => {
-          handleShare(selectedUser);
-          setIsShareModalOpen(false);
-          router.push("/sheet");
-         }}
-         disabled={isLoading}
-         className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
-        >
-         {isLoading ? "Sharing..." : "Share"}
-        </button>
-       </div>
-      </div>
-     </div>
-    )}
-
-    <div className="overflow-auto">
+    <ShareModal
+     isOpen={isShareModalOpen}
+     onClose={() => setIsShareModalOpen(false)}
+     users={users}
+     onShare={handleShare}
+    />
+    <div className="overflow-auto" ref={tableContainerRef}>
      <table className="min-w-full border border-gray-300 text-sm text-left">
       <DndContext
        sensors={useSensors(
@@ -463,7 +443,7 @@ export default function Spreadsheet() {
                   return;
                  }
                  clickTimerRef.current = setTimeout(() => {
-                  handleCellClick(rowIndex, colIndex);
+                  handleCellClickWithScroll(rowIndex, colIndex);
                   clickTimerRef.current = null;
                  }, 200);
                 }}
@@ -576,7 +556,7 @@ export default function Spreadsheet() {
                  return;
                 }
                 clickTimerRef.current = setTimeout(() => {
-                 handleCellClick(rowIndex, colIndex);
+                 handleCellClickWithScroll(rowIndex, colIndex);
                  clickTimerRef.current = null;
                 }, 200);
                }}
@@ -653,12 +633,19 @@ export default function Spreadsheet() {
       className="fixed z-50 bg-white border rounded shadow-lg"
       style={{ left: headerMenu.x - 70, top: headerMenu.y }}
      >
-      {dropdownColumns && Object.keys(dropdownColumns).includes(columnHeaders[headerMenu.colIndex]) ? (
+      {dropdownColumns &&
+      Object.keys(dropdownColumns).includes(
+       columnHeaders[headerMenu.colIndex]
+      ) ? (
        <button
         className="block w-full px-4 py-2 text-left hover:bg-gray-100"
         onClick={() => {
          setHeaderMenu(null);
-        handleAttachDropDown(columnHeaders[headerMenu.colIndex], undefined, "remove")
+         handleAttachDropDown(
+          columnHeaders[headerMenu.colIndex],
+          undefined,
+          "remove"
+         );
         }}
        >
         Remove Dropdown

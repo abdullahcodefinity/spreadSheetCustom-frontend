@@ -5,6 +5,7 @@ import { DeleteModal } from "./modal/DeleteModal";
 import { useSheetList } from "../(main)/sheet/hooks/useSheetList";
 import { Sheet } from "../types";
 import { Edit, Trash2 } from "lucide-react";
+import useAuth from "../hooks/useAuth";
 
 export default function SheetList() {
  const {
@@ -28,12 +29,11 @@ export default function SheetList() {
   handleDelete,
   handleSave,
   handleAddNewSheet,
-  permissions,
  } = useSheetList();
 
- const { hasCreatePermission, hasUpdatePermission, hasDeletePermission } =
-  permissions;
- console.log({ hasCreatePermission, hasDeletePermission, hasUpdatePermission });
+ const { currentUser } = useAuth();
+
+
 
  if (isLoadingData) {
   return (
@@ -59,7 +59,7 @@ export default function SheetList() {
   <>
    <div className="flex justify-between items-center mb-4">
     <h1 className="text-xl font-bold">Sheets</h1>
-    {!isAddingNew && hasCreatePermission && (
+    {!isAddingNew && currentUser.role === "SuperAdmin" && (
      <button
       onClick={() => setIsAddingNew(true)}
       className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"
@@ -255,7 +255,7 @@ export default function SheetList() {
             </div>
            </Link>
            <div className="flex items-center gap-3 pr-4 ">
-            {hasUpdatePermission && (
+            { currentUser.role === "SuperAdmin" && (
              <button
               onClick={() => handleEdit(sheet)}
               className="text-blue-600 hover:text-blue-800"
@@ -263,7 +263,7 @@ export default function SheetList() {
               <Edit className="w-4 h-4" />
              </button>
             )}
-            {hasDeletePermission && (
+            { currentUser.role === "SuperAdmin"&& (
              <button
               onClick={() => {
                setIsShow(true);
@@ -271,7 +271,7 @@ export default function SheetList() {
               }}
               className="text-red-600 hover:text-red-800"
              >
-            <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4 h-4" />
              </button>
             )}
            </div>

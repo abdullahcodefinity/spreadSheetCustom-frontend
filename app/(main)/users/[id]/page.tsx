@@ -17,7 +17,6 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
     password: '',
     name: '',
     role: 'user',
-    permissions: []
   });
   const router = useRouter();
 
@@ -56,25 +55,14 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
         name: user.name,
         password: '', // Don't show existing password
         role: user.role,
-        permissions: user.permissions.map((permission: any) => ({
-          action: permission?.permission?.action,
-          subject: permission?.permission?.subject
-        }))
       });
     }
   }, [userData, isEditMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent form submission from reloading the page
-
-    if (formData.permissions.length === 0) {
-      errorToast('Please select at least one permission');
-      return;
-    }
-
+    e.preventDefault();
     try {
       if (isEditMode) {
-        // Only send password if it's not empty
         const updateData = {
           ...formData,
           password: formData.password || undefined
@@ -82,19 +70,16 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
         updateUser(updateData);
       } else {
         createUser(formData);
-        // Reset form only in create mode
         setFormData({
           email: '',
           password: '',
           name: '',
           role: 'user',
-          permissions: []
         });
       }
     } catch (error: any) {
       if (error.response?.data) {
         const apiError = error.response.data as ApiError;
-
         if (apiError.errors) {
           const errorMessages = Object.entries(apiError.errors)
             .map(([field, messages]) => `${field}: ${messages.join(', ')}`)
@@ -113,30 +98,11 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-
-    if (type === 'checkbox') {
-      setFormData(prev => {
-        const action = name as SheetPermission['action'];
-        const newPermissions = checked
-          ? [...prev.permissions, { action, subject: 'Sheet' as const }]
-          : prev.permissions.filter(p => p.action !== action);
-
-        return {
-          ...prev,
-          permissions: newPermissions
-        };
-      });
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
-    }
-  };
-
-  const isPermissionChecked = (action: SheetPermission['action']) => {
-    return formData?.permissions?.some(p => p.action === action);
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const isLoading = isCreating;
@@ -159,12 +125,12 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="mb-6">
             <h1 className="text-2xl font-bold text-gray-900">
-              {isEditMode ? 'Edit Sheet User' : 'Create Sheet User'}
+              {isEditMode ? 'Edit User' : 'Create User'}
             </h1>
             <p className="mt-1 text-sm text-gray-600">
               {isEditMode
-                ? 'Update user details and permissions'
-                : 'Create a new user with specific permissions for sheet management'}
+                ? 'Update user details'
+                : 'Create a new user'}
             </p>
           </div>
 
@@ -223,93 +189,6 @@ export default function UserManagement({ params }: { params: Promise<{ id: strin
                   Leave blank to keep the current password
                 </p>
               )}
-            </div>
-
-            <div className="border border-gray-200 rounded-lg p-4">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Sheet Permissions</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="create"
-                    name="create"
-                    checked={isPermissionChecked('create')}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="create" className="ml-2 block text-sm text-gray-900">
-                    Create Sheets
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="read"
-                    name="read"
-                    checked={isPermissionChecked('read')}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="read" className="ml-2 block text-sm text-gray-900">
-                    View Sheets
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="update"
-                    name="update"
-                    checked={isPermissionChecked('update')}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="update" className="ml-2 block text-sm text-gray-900">
-                    Update Sheets
-                  </label>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="delete"
-                    name="delete"
-                    checked={isPermissionChecked('delete')}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="delete" className="ml-2 block text-sm text-gray-900">
-                    Delete Sheets
-                  </label>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="addColumn"
-                    name="addColumn"
-                    checked={isPermissionChecked('addColumn')}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="addColumn" className="ml-2 block text-sm text-gray-900">
-                    Add Column
-                  </label>
-                </div>
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="updateColumnHeader"
-                    name="updateColumnHeader"
-                    checked={isPermissionChecked('updateColumnHeader')}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label htmlFor="updateColumnHeader" className="ml-2 block text-sm text-gray-900">
-                    Update Column Header
-                  </label>
-                </div>
-              </div>
             </div>
 
             <div className="flex gap-4 pt-4">

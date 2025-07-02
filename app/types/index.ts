@@ -69,7 +69,6 @@ export interface UserFormData {
   password: string;
   name: string;
   role: string;
-  permissions: SheetPermission[];
 }
 
 export interface ApiError {
@@ -154,8 +153,9 @@ export interface UserTableProps {
   handleEdit: (userId: number) => void;
   handleDelete: (userId: number, userName: string) => void;
   isDeleting: boolean;
-  getPermissionLabel: (permission: { action: string; subject: string }) => string;
+
   formatDate: (date: string) => string;
+  onEditSheetPermissions: (user: any, sheet: any) => void;
 }
 
 export interface DeleteModalProps {

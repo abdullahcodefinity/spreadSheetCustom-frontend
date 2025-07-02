@@ -6,8 +6,8 @@ export default function UserTable({
  handleEdit,
  handleDelete,
  isDeleting,
- getPermissionLabel,
  formatDate,
+ setSheetModal,
 }: UserTableProps) {
  return (
   <div className="overflow-x-auto">
@@ -21,7 +21,7 @@ export default function UserTable({
        Email
       </th>
       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-       Permissions
+       Sheets
       </th>
       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
        Created
@@ -52,14 +52,20 @@ export default function UserTable({
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
          <div className="flex flex-wrap gap-2">
-          {user.permissions.map((permission, index) => (
-           <span
-            key={index}
-            className={`inline-flex items-center px-2.5 py-0.5  rounded-full text-xs font-medium bg-blue-200`}
-           >
-            {getPermissionLabel(permission.permission)}
-           </span>
-          ))}
+          {user?.sheets?.length > 0 ? (
+           user?.sheets?.map((sheet: any, index: number) => (
+            <div className="flex gap-1 items-center">
+             <span
+              key={index}
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-200 mr-2"
+             >
+              {sheet.sheetName}
+             </span>
+            </div>
+           ))
+          ) : (
+           <span className="text-sm text-gray-500">N/A</span>
+          )}
          </div>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
@@ -90,6 +96,13 @@ export default function UserTable({
            title="Delete user"
           >
            <Trash2 className="w-4 h-4" />
+          </button>
+          <button
+           onClick={() => setSheetModal({ state: true, selectedUser: user })}
+           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+           title="Edit Sheet Permission"
+          >
+           <Edit className="w-4 h-4" />
           </button>
          </div>
         </td>
