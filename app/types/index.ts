@@ -135,6 +135,12 @@ export interface ContextMenuProps {
   handleColumnOperation: (operation: string, params: { index: number, newName?: string }) => void;
   columnHeaders: string[];
   getColumnLabel: (index: number) => string;
+  hasAddColumn: boolean;
+  hasDeleteColumn: boolean;
+  hasUpdateColumn: boolean;
+  hasAddRow: boolean;
+  hasDeleteRow: boolean;
+  hasUpdateRow: boolean;
 }
 
 export interface HeaderProps {

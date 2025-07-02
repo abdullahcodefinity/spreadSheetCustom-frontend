@@ -22,6 +22,7 @@ import { useSheetData } from "../(main)/sheet/hooks/useSheetData";
 import { useParams, useRouter } from "next/navigation";
 import ContextMenu from "./ContextMenu";
 import ShareModal from "./modal/ShareModal";
+import useAuth from "../hooks/useAuth";
 
 function SortableHeader({ id, children, ...props }: any) {
  const {
@@ -105,6 +106,8 @@ export default function Spreadsheet() {
  const preventSingleClickRef = useRef(false);
  const tableContainerRef = useRef<HTMLDivElement>(null);
 
+ const { currentUser } = useAuth();
+
  // Use the enhanced useSheetData hook that contains all the business logic
  const {
   data,
@@ -118,18 +121,22 @@ export default function Spreadsheet() {
   valueSets,
   users,
   isLoading,
-  canUpdateSheet,
   contextMenu,
   isShareModalOpen,
-  selectedUser,
-  canUpdateColumnHeader,
+
+  // Permission flags
+  hasAddColumn,
+  hasDeleteColumn,
+  hasUpdateColumn,
+  hasAddRow,
+  hasDeleteRow,
+  hasUpdateRow,
 
   handleAttachDropDown,
   setEditingHeader,
   setTempHeader,
   setContextMenu,
   setIsShareModalOpen,
-  setSelectedUser,
   setEditingCell,
   setTempValue,
   setColumnHeaders,
@@ -144,6 +151,16 @@ export default function Spreadsheet() {
   exportToCSV,
   getColumnLabel,
  } = useSheetData(sheetId as string);
+
+ console.log(
+  hasAddColumn,
+  hasDeleteColumn,
+  hasUpdateColumn,
+  hasAddRow,
+  hasDeleteRow,
+  hasUpdateRow,
+  "PERMISSIONS"
+ );
 
  const [headerMenu, setHeaderMenu] = useState<{
   colIndex: number;
@@ -173,6 +190,7 @@ export default function Spreadsheet() {
  }, []);
 
  const handleColumnDragEnd = async (event: any) => {
+  if (!hasUpdateColumn) return;
   const { active, over } = event;
   if (!over || active.id === over.id) return;
 
@@ -196,6 +214,7 @@ export default function Spreadsheet() {
  };
 
  const handleRowDragEnd = async (event: any) => {
+  if (!hasUpdateRow) return;
   const { active, over } = event;
   if (!over || active.id === over.id) return;
   const oldIndex = Number(active.id);
@@ -250,7 +269,12 @@ export default function Spreadsheet() {
     </div>
     {/* Permission Status Indicator */}
     <div className="mb-4">
-     {canUpdateSheet ? (
+     {hasAddColumn ||
+     hasDeleteColumn ||
+     hasUpdateColumn ||
+     hasAddRow ||
+     hasDeleteRow ||
+     hasUpdateRow ? (
       <div className="bg-green-50 border border-green-200 rounded-md p-3">
        <div className="flex items-center">
         <svg
@@ -293,7 +317,7 @@ export default function Spreadsheet() {
 
     <div className="flex justify-between items-center">
      <div className="flex flex-wrap gap-2">
-      {canUpdateSheet && (
+      {currentUser?.role === "SuperAdmin" && (
        <button
         onClick={() => setIsShareModalOpen(true)}
         className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
@@ -309,9 +333,6 @@ export default function Spreadsheet() {
       </button>
      </div>
     </div>
-
-    
-
     <ShareModal
      isOpen={isShareModalOpen}
      onClose={() => setIsShareModalOpen(false)}
@@ -405,7 +426,7 @@ export default function Spreadsheet() {
                key={colIndex}
                className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
               >
-               {canUpdateSheet && (
+               {hasUpdateColumn && (
                 <button
                  className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
                  onClick={(e) => {
@@ -471,7 +492,7 @@ export default function Spreadsheet() {
                  }
                 }}
                 className={`min-h-[20px] ${
-                 canUpdateSheet
+                 hasUpdateRow
                   ? "cursor-pointer hover:bg-gray-100"
                   : "cursor-not-allowed opacity-75"
                 }`}
@@ -518,32 +539,31 @@ export default function Spreadsheet() {
               key={colIndex}
               className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
              >
-              {canUpdateSheet && (
-               <button
-                className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
-                onClick={(e) => {
-                 e.stopPropagation();
-                 setContextMenu({
-                  row: rowIndex,
-                  col: colIndex,
-                  x: deviceType.mobile
-                   ? e.currentTarget.getBoundingClientRect().left - 190
-                   : deviceType.tab
-                   ? e.currentTarget.getBoundingClientRect().left - 360
-                   : e.currentTarget.getBoundingClientRect().left - 430,
-                  y: deviceType.mobile
-                   ? e.currentTarget.getBoundingClientRect().bottom +
-                     window.scrollY -
-                     150
-                   : e.currentTarget.getBoundingClientRect().bottom +
-                     window.scrollY -
-                     165,
-                 });
-                }}
-               >
-                ⋮
-               </button>
-              )}
+              <button
+               className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
+               onClick={(e) => {
+                console.log("clicked on point");
+                e.stopPropagation();
+                setContextMenu({
+                 row: rowIndex,
+                 col: colIndex,
+                 x: deviceType.mobile
+                  ? e.currentTarget.getBoundingClientRect().left - 190
+                  : deviceType.tab
+                  ? e.currentTarget.getBoundingClientRect().left - 360
+                  : e.currentTarget.getBoundingClientRect().left - 430,
+                 y: deviceType.mobile
+                  ? e.currentTarget.getBoundingClientRect().bottom +
+                    window.scrollY -
+                    150
+                  : e.currentTarget.getBoundingClientRect().bottom +
+                    window.scrollY -
+                    165,
+                });
+               }}
+              >
+               ⋮
+              </button>
 
               <div
                onClick={() => {
@@ -583,7 +603,7 @@ export default function Spreadsheet() {
                 }
                }}
                className={`min-h-[20px] ${
-                canUpdateSheet
+                hasUpdateRow
                  ? "cursor-pointer hover:bg-gray-100"
                  : "cursor-not-allowed opacity-75"
                }`}
@@ -618,17 +638,26 @@ export default function Spreadsheet() {
       </DndContext>
      </table>
     </div>
-    <ContextMenu
-     contextMenu={contextMenu}
-     setContextMenu={setContextMenu}
-     //@ts-ignore
-     handleRowOperation={handleRowOperation}
-     //@ts-ignore
-     handleColumnOperation={handleColumnOperation}
-     columnHeaders={columnHeaders}
-     getColumnLabel={getColumnLabel}
-    />
-    {headerMenu && canUpdateColumnHeader && (
+    {(hasAddColumn || hasDeleteColumn || hasAddRow || hasDeleteRow) && (
+      <ContextMenu
+        contextMenu={contextMenu}
+        setContextMenu={setContextMenu}
+        //@ts-ignore
+        handleRowOperation={handleRowOperation}
+        //@ts-ignore
+        handleColumnOperation={handleColumnOperation}
+        columnHeaders={columnHeaders}
+        getColumnLabel={getColumnLabel}
+        hasAddColumn={hasAddColumn}
+        hasDeleteColumn={hasDeleteColumn}
+        hasUpdateColumn={hasUpdateColumn}
+        hasAddRow={hasAddRow}
+        hasDeleteRow={hasDeleteRow}
+        hasUpdateRow={hasUpdateRow}
+      />
+    )}
+
+    {headerMenu && hasUpdateColumn && (
      <div
       className="fixed z-50 bg-white border rounded shadow-lg"
       style={{ left: headerMenu.x - 70, top: headerMenu.y }}
@@ -671,7 +700,7 @@ export default function Spreadsheet() {
       <div className="bg-white rounded-lg p-6 w-80">
        <h3 className="text-lg font-semibold mb-4">Select Key for Dropdown</h3>
        <ul>
-        {valueSets.map((kv: { id: number; name: string }) => (
+        {valueSets?.data.map((kv: { id: number; name: string }) => (
          <li key={kv.id}>
           <button
            className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded"

@@ -50,7 +50,7 @@ export default function UserTable({
         <td className="px-6 py-4 whitespace-nowrap">
          <div className="text-sm text-gray-500">{user.email}</div>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
+        <td className="px-6 py-4 whitespace-nowrap flex  ">
          <div className="flex flex-wrap gap-2">
           {user?.sheets?.length > 0 ? (
            user?.sheets?.map((sheet: any, index: number) => (
@@ -67,6 +67,15 @@ export default function UserTable({
            <span className="text-sm text-gray-500">N/A</span>
           )}
          </div>
+         {user?.sheets?.length > 0 && (
+          <button
+           onClick={() => setSheetModal({ state: true, selectedUser: user })}
+           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+           title="Edit Sheet Permission"
+          >
+           <Edit className="w-4 h-4" />
+          </button>
+         )}
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
          <div className="text-sm text-gray-500">
@@ -96,13 +105,6 @@ export default function UserTable({
            title="Delete user"
           >
            <Trash2 className="w-4 h-4" />
-          </button>
-          <button
-           onClick={() => setSheetModal({ state: true, selectedUser: user })}
-           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-           title="Edit Sheet Permission"
-          >
-           <Edit className="w-4 h-4" />
           </button>
          </div>
         </td>
