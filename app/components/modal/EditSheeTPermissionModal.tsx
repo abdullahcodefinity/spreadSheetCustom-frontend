@@ -23,9 +23,7 @@ interface EditSheetPermissionModalProps {
  isOpen: boolean;
  onClose: () => void;
  onUpdate: (payload: { sheetId: number; permissions: string[] }) => void;
- userData: {
-  sheets: Sheet[];
- };
+ userData: Sheet[]
  handleRemoveAccess: (sheetId: number) => void;
 }
 
@@ -52,13 +50,13 @@ const EditSheetPermissionModal: React.FC<EditSheetPermissionModalProps> = ({
 
  // Update permissions when sheet selection changes
  useEffect(() => {
-  if (selectedSheet && userData?.sheets) {
-   const sheet = userData.sheets.find((s) => s.sheetId === selectedSheet);
+  if (selectedSheet && userData) {
+   const sheet = userData?.find((s) => s.sheetId === selectedSheet);
    if (sheet) {
     setPermissions(sheet.permissions);
    }
   }
- }, [selectedSheet, userData?.sheets]);
+ }, [selectedSheet, userData]);
 
  if (!isOpen) return null;
 
@@ -126,7 +124,7 @@ const EditSheetPermissionModal: React.FC<EditSheetPermissionModalProps> = ({
        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
       >
        <option value="">Select a sheet</option>
-       {userData?.sheets?.map((sheet) => (
+       {userData?.map((sheet) => (
         <option key={sheet.sheetId} value={sheet.sheetId}>
          {sheet.sheetName}
         </option>

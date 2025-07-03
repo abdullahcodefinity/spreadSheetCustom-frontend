@@ -6,9 +6,7 @@ import { useRouter } from "next/navigation";
 import SearchBar from "@/app/components/SearchBar";
 import UserTable from "@/app/components/UserTable";
 import EditSheetPermissionModal from "@/app/components/modal/EditSheeTPermissionModal";
-import { useState } from "react";
-import useUpdateData from "@/app/hooks/ useUpdateData";
-import { Url } from "@/src/api";
+
 
 export default function UserList() {
 
@@ -48,6 +46,7 @@ export default function UserList() {
    </div>
   );
  }
+ console.log(sheetModal?.selectedUser,'KKKKKK')
 
  return (
   <div className="min-h-screen bg-gray-50 py-8">
@@ -62,7 +61,7 @@ export default function UserList() {
     isOpen={sheetModal.state}
     onClose={() => setSheetModal({ state: false, selectedUser: null })}
     onUpdate={handleUpdateSheetPermissions}
-    userData={sheetModal.selectedUser || { sheets: [] }}
+    userData={sheetModal?.selectedUser?.sheets || []}
     handleRemoveAccess={handleRemoveAccess}
    />
    <div className="max-w-7xl mx-auto px-4">

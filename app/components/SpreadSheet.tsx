@@ -173,6 +173,88 @@ export default function Spreadsheet() {
  const [dropdownModal, setDropdownModal] = useState<{
   colIndex: number;
  } | null>(null);
+ const [isSaving, setIsSaving] = useState(false);
+
+ // Save scroll position before making changes
+ const saveScrollPosition = () => {
+  if (tableContainerRef.current) {
+   const scrollPosition = tableContainerRef.current.scrollTop;
+   sessionStorage.setItem('spreadsheetScrollPosition', scrollPosition.toString());
+  }
+ };
+
+ // Restore scroll position after data changes
+ const restoreScrollPosition = () => {
+  const scrollPosition = sessionStorage.getItem('spreadsheetScrollPosition');
+  if (scrollPosition && tableContainerRef.current) {
+   // Use requestAnimationFrame to ensure DOM is ready
+   requestAnimationFrame(() => {
+    if (tableContainerRef.current) {
+     tableContainerRef.current.scrollTop = parseInt(scrollPosition, 10);
+     sessionStorage.removeItem('spreadsheetScrollPosition');
+    }
+   });
+  }
+ };
+
+ // Enhanced saveCell function with scroll persistence
+ const handleSaveCell = async (rowIndex: number, colIndex: number) => {
+  saveScrollPosition();
+  await saveCell(rowIndex, colIndex);
+  // Restore scroll position after a longer delay to ensure DOM updates are complete
+  setTimeout(restoreScrollPosition, 150);
+ };
+
+ // Enhanced saveHeader function with scroll persistence
+ const handleSaveHeader = async (colIndex: number) => {
+  saveScrollPosition();
+  await saveHeader(colIndex);
+  setTimeout(restoreScrollPosition, 150);
+ };
+
+ // Custom blur handler that ensures scroll restoration
+ const handleCellBlur = async (rowIndex: number, colIndex: number) => {
+  if (isSaving) return; // Prevent multiple saves
+  setIsSaving(true);
+  saveScrollPosition();
+  await saveCell(rowIndex, colIndex);
+  // Use multiple attempts to restore scroll position
+  setTimeout(() => {
+    restoreScrollPosition();
+    setIsSaving(false);
+  }, 100);
+  setTimeout(restoreScrollPosition, 200);
+  setTimeout(restoreScrollPosition, 300);
+ };
+
+ // Custom header blur handler
+ const handleHeaderBlur = async (colIndex: number) => {
+  if (isSaving) return; // Prevent multiple saves
+  setIsSaving(true);
+  saveScrollPosition();
+  await saveHeader(colIndex);
+  // Use multiple attempts to restore scroll position
+  setTimeout(() => {
+    restoreScrollPosition();
+    setIsSaving(false);
+  }, 100);
+  setTimeout(restoreScrollPosition, 200);
+  setTimeout(restoreScrollPosition, 300);
+ };
+
+ // Enhanced row operations with scroll persistence
+ const handleRowOperationWithScroll = async (operation: "add" | "delete" | "move", params: number | { sourceIndex: number; targetIndex: number }) => {
+  saveScrollPosition();
+  await handleRowOperation(operation, params);
+  setTimeout(restoreScrollPosition, 100);
+ };
+
+ // Enhanced column operations with scroll persistence
+ const handleColumnOperationWithScroll = async (operation: "add" | "update" | "delete" | "move", params: { index?: number; newName?: string; sourceIndex?: number; targetIndex?: number }) => {
+  saveScrollPosition();
+  await handleColumnOperation(operation, params);
+  setTimeout(restoreScrollPosition, 100);
+ };
 
  useEffect(() => {
   const handleClick = (e: MouseEvent) => {
@@ -188,6 +270,20 @@ export default function Spreadsheet() {
    if (!target.closest(".dropdown-modal")) {
     setDropdownModal(null);
    }
+   
+   // Handle clicking outside editing areas to restore scroll
+   if (editingCell && !target.closest('input, select')) {
+    // If clicking outside input/select while editing, restore scroll
+    setTimeout(restoreScrollPosition, 100);
+    setTimeout(restoreScrollPosition, 200);
+    setTimeout(restoreScrollPosition, 300);
+   }
+   if (editingHeader !== null && !target.closest('input')) {
+    // If clicking outside header input while editing, restore scroll
+    setTimeout(restoreScrollPosition, 100);
+    setTimeout(restoreScrollPosition, 200);
+    setTimeout(restoreScrollPosition, 300);
+   }
   };
   const handleEsc = (e: KeyboardEvent) => {
    if (e.key === "Escape") {
@@ -202,7 +298,7 @@ export default function Spreadsheet() {
    window.removeEventListener("click", handleClick);
    window.removeEventListener("keydown", handleEsc);
   };
- }, []);
+ }, [editingCell, editingHeader]);
 
  const handleColumnDragEnd = async (event: any) => {
   if (!hasUpdateColumn) return;
@@ -213,8 +309,8 @@ export default function Spreadsheet() {
   const newIndex = Number(over.id);
 
   try {
+   saveScrollPosition();
    const newHeaders = arrayMove(columnHeaders, oldIndex, newIndex);
-
    const newData = data.map((row) => arrayMove(row, oldIndex, newIndex));
 
    await handleColumnOperation("move", {
@@ -223,6 +319,7 @@ export default function Spreadsheet() {
    });
    setColumnHeaders(newHeaders);
    setData(newData);
+   setTimeout(restoreScrollPosition, 100);
   } catch (err) {
    console.log(err, "RRRRRR");
   }
@@ -235,16 +332,34 @@ export default function Spreadsheet() {
   const oldIndex = Number(active.id);
   const newIndex = Number(over.id);
   try {
+   saveScrollPosition();
    await handleRowOperation("move", {
     sourceIndex: oldIndex,
     targetIndex: newIndex,
    });
    const newData = arrayMove(data, oldIndex, newIndex);
    setData(newData);
+   setTimeout(restoreScrollPosition, 100);
   } catch (err) {
    console.log(err, "Error moving row");
   }
  };
+
+ // Restore scroll position when data loads or changes
+ useEffect(() => {
+  if (data.length > 0 && !isLoading) {
+   const scrollPosition = sessionStorage.getItem('spreadsheetScrollPosition');
+   if (scrollPosition && tableContainerRef.current) {
+    // Use requestAnimationFrame to ensure DOM is updated
+    requestAnimationFrame(() => {
+     if (tableContainerRef.current) {
+      tableContainerRef.current.scrollTop = parseInt(scrollPosition, 10);
+      sessionStorage.removeItem('spreadsheetScrollPosition');
+     }
+    });
+   }
+  }
+ }, [data, isLoading]);
 
  useEffect(() => {
   const handleScroll = () => {
@@ -395,14 +510,19 @@ export default function Spreadsheet() {
             {isLoading ? (
              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
             ) : editingHeader === colIndex ? (
-             <input
+                                       <input
               value={tempHeader}
               autoFocus
               onChange={(e) => setTempHeader(e.target.value)}
-              onBlur={() => saveHeader(colIndex)}
+              onFocus={() => saveScrollPosition()}
+              onBlur={() => handleHeaderBlur(colIndex)}
               onKeyDown={(e) => {
-               if (e.key === "Enter") saveHeader(colIndex);
-               if (e.key === "Escape") setEditingHeader(null);
+               if (e.key === "Enter") handleSaveHeader(colIndex);
+               if (e.key === "Escape") {
+                saveScrollPosition();
+                setEditingHeader(null);
+                setTimeout(restoreScrollPosition, 100);
+               }
               }}
               className="w-full  mr-8 py-0.5 border rounded outline-none"
              />
@@ -524,7 +644,16 @@ export default function Spreadsheet() {
                   value={tempValue}
                   autoFocus
                   onChange={(e) => setTempValue(e.target.value)}
-                  onBlur={() => saveCell(rowIndex, colIndex)}
+                  onFocus={() => saveScrollPosition()}
+                  onBlur={() => handleCellBlur(rowIndex, colIndex)}
+                  onKeyDown={(e) => {
+                   if (e.key === "Escape") {
+                    saveScrollPosition();
+                    setEditingCell(null);
+                    setTempValue(data[rowIndex][colIndex]);
+                    setTimeout(restoreScrollPosition, 100);
+                   }
+                  }}
                   className="w-full px-2 py-1 border rounded outline-none bg-white"
                  >
                   <option value="">Select option</option>
@@ -535,17 +664,20 @@ export default function Spreadsheet() {
                   ))}
                  </select>
                 ) : (
-                 <input
+                                                   <input
                   type="text"
                   value={tempValue}
                   autoFocus
                   onChange={(e) => setTempValue(e.target.value)}
-                  onBlur={() => saveCell(rowIndex, colIndex)}
+                  onFocus={() => saveScrollPosition()}
+                  onBlur={() => handleCellBlur(rowIndex, colIndex)}
                   onKeyDown={(e) => {
-                   if (e.key === "Enter") saveCell(rowIndex, colIndex);
+                   if (e.key === "Enter") handleSaveCell(rowIndex, colIndex);
                    if (e.key === "Escape") {
+                    saveScrollPosition();
                     setEditingCell(null);
                     setTempValue(data[rowIndex][colIndex]);
+                    setTimeout(restoreScrollPosition, 100);
                    }
                   }}
                   className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
@@ -642,7 +774,7 @@ export default function Spreadsheet() {
                ) : (
                 <span
                  className={
-                  cell ? `px-2 py-1 rounded border text-xs font-medium ` : ""
+                  cell ? `px-2 py-1  text-xs font-medium ` : ""
                  }
                 >
                  {cell || "-"}
@@ -664,9 +796,9 @@ export default function Spreadsheet() {
       contextMenu={contextMenu}
       setContextMenu={setContextMenu}
       //@ts-ignore
-      handleRowOperation={handleRowOperation}
+      handleRowOperation={handleRowOperationWithScroll}
       //@ts-ignore
-      handleColumnOperation={handleColumnOperation}
+      handleColumnOperation={handleColumnOperationWithScroll}
       columnHeaders={columnHeaders}
       getColumnLabel={getColumnLabel}
       hasAddColumn={hasAddColumn}

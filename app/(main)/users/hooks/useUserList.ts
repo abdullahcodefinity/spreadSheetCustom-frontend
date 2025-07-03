@@ -6,14 +6,15 @@ import dayjs from "dayjs";
 
 import useFetchData from "@/app/hooks/useFetchData";
 import useDelete from "@/app/hooks/useDelete";
-import { DeleteModalState, SheetPermission, User } from "@/app/types";
+import { DeleteModalState, SheetModalState, SheetPermission, User } from "@/app/types";
 import useUpdateData from "@/app/hooks/ useUpdateData";
 import { Url } from "@/src/api";
 
 export const useUserList = () => {
  const router = useRouter();
  const [sheetId, setSheetId] = useState<number>();
- const [sheetModal, setSheetModal] = useState({
+
+ const [sheetModal, setSheetModal] = useState<SheetModalState>({
   state: false,
   selectedUser: null,
  });

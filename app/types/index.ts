@@ -131,8 +131,8 @@ export interface ContextMenuProps {
     col: number;
   } | null;
   setContextMenu: (value: null) => void;
-  handleRowOperation: (operation: string, row: number) => void;
-  handleColumnOperation: (operation: string, params: { index: number, newName?: string }) => void;
+  handleRowOperation: (operation: "add" | "delete" | "move", params: number | { sourceIndex: number; targetIndex: number }) => void;
+  handleColumnOperation: (operation: "add" | "update" | "delete" | "move", params: { index?: number; newName?: string; sourceIndex?: number; targetIndex?: number }) => void;
   columnHeaders: string[];
   getColumnLabel: (index: number) => string;
   hasAddColumn: boolean;
@@ -159,11 +159,16 @@ export interface UserTableProps {
   handleEdit: (userId: number) => void;
   handleDelete: (userId: number, userName: string) => void;
   isDeleting: boolean;
-
+  setSheetModal: (value: { state: boolean; selectedUser: User | null }) => void;
   formatDate: (date: string) => string;
-  onEditSheetPermissions: (user: any, sheet: any) => void;
+
 }
 
+export interface SheetModalState {
+  state: boolean;
+  selectedUser: User | null;
+ }
+ 
 export interface DeleteModalProps {
   isShow: boolean;
   setIsShow: (show: boolean) => void;
