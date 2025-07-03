@@ -358,19 +358,22 @@ export const useSheetData = (sheetId: string | undefined) => {
   // Always get the latest permissions for the current sheet
   const perms = checkPermissions(sheetData);
 
-  if (operation === "add" && !perms.hasAddColumn) {
-   errorToast("You do not have permission to add columns");
-   return;
-  }
+  // SuperAdmin can do anything
+  if (currentUser?.role !=='SuperAdmin') {
+    if (operation === "add" && !perms.hasAddColumn) {
+     errorToast("You do not have permission to add columns");
+     return;
+    }
 
-  if (operation === "update" || operation === "move" && !perms.hasUpdateColumn) {
-   errorToast("You do not have permission to update columns");
-   return;
-  }
+    if (operation === "update" || operation === "move" && !perms.hasUpdateColumn) {
+     errorToast("You do not have permission to update columns");
+     return;
+    }
 
-  if (operation === "delete" && !perms.hasDeleteColumn) {
-   errorToast("You do not have permission to delete columns");
-   return;
+    if (operation === "delete" && !perms.hasDeleteColumn) {
+     errorToast("You do not have permission to delete columns");
+     return;
+    }
   }
 
   try {
@@ -439,7 +442,8 @@ export const useSheetData = (sheetId: string | undefined) => {
       },
      }
     );
-   } else {
+   } else if (operation === "update") {
+    // Update column header name
     updateColumnsMutate(
      {
       newColumnName: params.newName,
@@ -452,10 +456,10 @@ export const useSheetData = (sheetId: string | undefined) => {
         newHeaders[params.index] = params.newName;
         setColumnHeaders(newHeaders);
        }
-       successToast(`Column ${operation}d successfully`);
+       successToast("Column header updated successfully");
       },
       onError: () => {
-       errorToast(`Failed to ${operation} column`);
+       errorToast("Failed to update column header");
       },
      }
     );
@@ -504,11 +508,9 @@ export const useSheetData = (sheetId: string | undefined) => {
   }
   setIsLoading(true);
   try {
-   await handleColumnOperation("update", { index, newName });
-   const newHeaders = [...columnHeaders];
-   newHeaders[index] = newName;
-   setColumnHeaders(newHeaders);
-   successToast("Header updated successfully");
+   // Call handleColumnOperation without await since it uses mutation callbacks
+   handleColumnOperation("update", { index, newName });
+   
   } catch (err) {
    errorToast("Failed to update header");
   } finally {

@@ -23,6 +23,7 @@ import { useParams, useRouter } from "next/navigation";
 import ContextMenu from "./ContextMenu";
 import ShareModal from "./modal/ShareModal";
 import useAuth from "../hooks/useAuth";
+import useToast from "../hooks/useToast";
 
 function SortableHeader({ id, children, ...props }: any) {
  const {
@@ -58,10 +59,11 @@ function SortableHeader({ id, children, ...props }: any) {
   >
    <div className="flex items-center justify-center gap-1">
     {children}
-    <span style={{ cursor: "grab", marginLeft: 4 }}>⠿</span>
+    {/* <span style={{ cursor: "grab", marginLeft: 4 }}>⠿</span> */}
+
     <button
      type="button"
-     className="ml-2 text-xl opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
+     className="ml-7 hover:border hover:border-gray-400 rounded w-8 text-xl opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
      onClick={(e) => {
       e.stopPropagation(); // Prevent click from bubbling to parent
       props.onMenuClick(e);
@@ -105,6 +107,7 @@ export default function Spreadsheet() {
  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
  const preventSingleClickRef = useRef(false);
  const tableContainerRef = useRef<HTMLDivElement>(null);
+ const {errorToast}=useToast()
 
  const { currentUser } = useAuth();
 
@@ -177,9 +180,21 @@ export default function Spreadsheet() {
    if (!target.closest(".custom-context-menu")) {
     setContextMenu(null);
    }
+   // Close header menu when clicking outside
+   if (!target.closest(".header-menu")) {
+    setHeaderMenu(null);
+   }
+   // Close dropdown modal when clicking outside
+   if (!target.closest(".dropdown-modal")) {
+    setDropdownModal(null);
+   }
   };
   const handleEsc = (e: KeyboardEvent) => {
-   if (e.key === "Escape") setContextMenu(null);
+   if (e.key === "Escape") {
+    setContextMenu(null);
+    setHeaderMenu(null);
+    setDropdownModal(null);
+   }
   };
   window.addEventListener("click", handleClick);
   window.addEventListener("keydown", handleEsc);
@@ -214,7 +229,7 @@ export default function Spreadsheet() {
  };
 
  const handleRowDragEnd = async (event: any) => {
-  if (!hasUpdateRow) return;
+  if (!hasUpdateColumn) return;
   const { active, over } = event;
   if (!over || active.id === over.id) return;
   const oldIndex = Number(active.id);
@@ -359,9 +374,16 @@ export default function Spreadsheet() {
            <SortableHeader
             key={colIndex}
             id={colIndex.toString()}
-            onClick={() => handleHeaderClick(colIndex)}
+            onClick={() => {
+          
+             handleHeaderClick(colIndex);
+            }}
             onMenuClick={(e: React.MouseEvent) => {
              const rect = (e.target as HTMLElement).getBoundingClientRect();
+             if (!hasUpdateColumn) {
+              errorToast("You do not have permission to update columns");
+              return;
+             }
              setHeaderMenu({
               colIndex,
               x: rect.right,
@@ -382,10 +404,10 @@ export default function Spreadsheet() {
                if (e.key === "Enter") saveHeader(colIndex);
                if (e.key === "Escape") setEditingHeader(null);
               }}
-              className="w-full px-1 py-0.5 border rounded outline-none"
+              className="w-full  mr-8 py-0.5 border rounded outline-none"
              />
             ) : (
-             <div className="flex items-center justify-center gap-1">
+             <div className="flex items-center justify-center gap-1 mr-4">
               {header}
              </div>
             )}
@@ -426,9 +448,9 @@ export default function Spreadsheet() {
                key={colIndex}
                className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
               >
-               {hasUpdateColumn && (
+               {/* {hasUpdateColumn && (
                 <button
-                 className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
+                 className="absolute top-1  border  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
                  onClick={(e) => {
                   e.stopPropagation();
                   setContextMenu({
@@ -451,7 +473,7 @@ export default function Spreadsheet() {
                 >
                  ⋮
                 </button>
-               )}
+               )} */}
 
                <div
                 onClick={() => {
@@ -526,7 +548,7 @@ export default function Spreadsheet() {
                     setTempValue(data[rowIndex][colIndex]);
                    }
                   }}
-                  className="w-full px-2 py-1 border rounded outline-none"
+                  className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
                  />
                 )}
                </div>
@@ -540,9 +562,8 @@ export default function Spreadsheet() {
               className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
              >
               <button
-               className="absolute top-1 right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
+               className="absolute ml-3 top-1 mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
                onClick={(e) => {
-                console.log("clicked on point");
                 e.stopPropagation();
                 setContextMenu({
                  row: rowIndex,
@@ -602,7 +623,7 @@ export default function Spreadsheet() {
                  window.open(url, "_blank", "noopener,noreferrer");
                 }
                }}
-               className={`min-h-[20px] ${
+               className={`min-h-[20px] border mr-4 ${
                 hasUpdateRow
                  ? "cursor-pointer hover:bg-gray-100"
                  : "cursor-not-allowed opacity-75"
@@ -639,28 +660,29 @@ export default function Spreadsheet() {
      </table>
     </div>
     {(hasAddColumn || hasDeleteColumn || hasAddRow || hasDeleteRow) && (
-      <ContextMenu
-        contextMenu={contextMenu}
-        setContextMenu={setContextMenu}
-        //@ts-ignore
-        handleRowOperation={handleRowOperation}
-        //@ts-ignore
-        handleColumnOperation={handleColumnOperation}
-        columnHeaders={columnHeaders}
-        getColumnLabel={getColumnLabel}
-        hasAddColumn={hasAddColumn}
-        hasDeleteColumn={hasDeleteColumn}
-        hasUpdateColumn={hasUpdateColumn}
-        hasAddRow={hasAddRow}
-        hasDeleteRow={hasDeleteRow}
-        hasUpdateRow={hasUpdateRow}
-      />
+     <ContextMenu
+      contextMenu={contextMenu}
+      setContextMenu={setContextMenu}
+      //@ts-ignore
+      handleRowOperation={handleRowOperation}
+      //@ts-ignore
+      handleColumnOperation={handleColumnOperation}
+      columnHeaders={columnHeaders}
+      getColumnLabel={getColumnLabel}
+      hasAddColumn={hasAddColumn}
+      hasDeleteColumn={hasDeleteColumn}
+      hasUpdateColumn={hasUpdateColumn}
+      hasAddRow={hasAddRow}
+      hasDeleteRow={hasDeleteRow}
+      hasUpdateRow={hasUpdateRow}
+     />
     )}
 
     {headerMenu && hasUpdateColumn && (
      <div
-      className="fixed z-50 bg-white border rounded shadow-lg"
+      className="fixed z-50 bg-white border rounded shadow-lg header-menu"
       style={{ left: headerMenu.x - 70, top: headerMenu.y }}
+      onClick={(e) => e.stopPropagation()}
      >
       {dropdownColumns &&
       Object.keys(dropdownColumns).includes(
@@ -695,9 +717,9 @@ export default function Spreadsheet() {
     {dropdownModal && (
      <div
       style={{ marginTop: "0px" }}
-      className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 dropdown-modal"
      >
-      <div className="bg-white rounded-lg p-6 w-80">
+      <div className="bg-white rounded-lg p-6 w-80 dropdown-modal">
        <h3 className="text-lg font-semibold mb-4">Select Key for Dropdown</h3>
        <ul>
         {valueSets?.data.map((kv: { id: number; name: string }) => (

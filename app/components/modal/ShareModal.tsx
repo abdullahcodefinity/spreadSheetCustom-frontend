@@ -3,10 +3,10 @@ import { X, Users, Search } from 'lucide-react';
 const PERMISSION_LABELS: { [key: string]: string } = {
   addColumn: "Add Column",
   deleteColumn: "Delete Column", 
-  updateColumn: "Update Column",
+  updateColumn: "Update Column and Row Ordering ",
   addRow: "Add Row",
   deleteRow: "Delete Row",
-  updateRow: "Update Row"
+  updateRow: "Update Data"
 };
 
 interface ShareModalProps {

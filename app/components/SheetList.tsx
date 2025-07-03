@@ -177,11 +177,11 @@ export default function SheetList() {
        </div>
       )}
 
-      <ul className="space-y-2">
+      <div className="grid grid-cols-2 gap-4">
        {sheets?.map((sheet: Sheet) => (
-        <li
+        <div
          key={sheet.id}
-         className="bg-white rounded-xl shadow-sm border border-gray-200  hover:shadow-md transition-all duration-200"
+         className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all duration-200"
         >
          {editingId === sheet.id ? (
           <div className="flex w-full p-4 items-center justify-between">
@@ -233,24 +233,12 @@ export default function SheetList() {
           <div className="flex items-center">
            <Link className="flex-1 block p-4" href={`/sheet/${sheet.id}`}>
             <div className="flex flex-col">
-             <span className="font-medium">{sheet.name}</span>
+             <span className="font-medium truncate max-w-[290px] inline-block" title={sheet.name}>{sheet.name}</span>
              <div className="text-sm text-gray-600 mt-1">
               <span>
                {sheet?.columns?.length} columns • {sheet?.sheetData?.length}{" "}
                rows
               </span>
-              {sheet?.columns?.length > 0 && (
-               <div className="mt-1 flex flex-wrap gap-1">
-                {sheet.columns.map((column, index) => (
-                 <span
-                  key={index}
-                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800"
-                 >
-                  {column}
-                 </span>
-                ))}
-               </div>
-              )}
              </div>
             </div>
            </Link>
@@ -277,9 +265,9 @@ export default function SheetList() {
            </div>
           </div>
          )}
-        </li>
+        </div>
        ))}
-      </ul>
+      </div>
      </div>
     </>
    )}
