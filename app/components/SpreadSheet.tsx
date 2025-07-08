@@ -55,8 +55,9 @@ function SortableHeader({ id, colIndex, children, ...props }: any) {
     top: 0,
     zIndex: 30, // higher than default
     background: style.background || "#f3f4f6", // fallback bg
-    width: props.width, // <-- set width from props
-    minWidth: '60px',
+    width: props.width,
+    minWidth: 50,
+    maxWidth: props.width,
    }}
    className={`relative group ${props.className ? props.className.replace(/w-\S+/g, '') : ""}`}
   >
@@ -528,7 +529,7 @@ export default function Spreadsheet() {
                className="w-full border-green-500 py-0.5 border rounded outline-none"
               />
              ) : (
-              <div className="flex items-center justify-center gap-1 ml-2 mr-4">
+              <div className=" items-center justify-center gap-1 ml-2 mr-4 overflow-hidden text-ellipsis whitespace-nowrap block w-full" style={{width: '100%', maxWidth: '100%'}}>
                {header}
               </div>
              )}
@@ -578,8 +579,8 @@ export default function Spreadsheet() {
               return (
                <td
                 key={colIndex}
-                className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
-                style={{ width: cellWidth, minWidth: '60px' }}
+                className="border border-gray-300 px-3 py-2 relative group"
+                style={{ width: cellWidth, minWidth: 60, maxWidth: cellWidth }}
                >
                 <div
                  onClick={() => {
@@ -671,8 +672,8 @@ export default function Spreadsheet() {
              return (
               <td
                key={colIndex}
-               className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
-               style={{ width: cellWidth, minWidth: '60px' }}
+               className="border border-gray-300 px-3 py-2 relative group"
+               style={{ width: cellWidth, minWidth: 60, maxWidth: cellWidth }}
               >
                <button
                 className="absolute ml-3  mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
@@ -747,7 +748,8 @@ export default function Spreadsheet() {
                  cell.trim()
                 ) ? (
                  <span
-                  className="text-blue-600 underline cursor-pointer"
+                  className="text-blue-600 underline cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap block w-full"
+                  style={{ maxWidth: '100%' }}
                   title="Double-click to open link"
                  >
                   {cell}
@@ -755,8 +757,10 @@ export default function Spreadsheet() {
                 ) : (
                  <span
                   className={
-                   cell ? `px-2 py-1  text-xs font-medium ` : ""
+                   (cell ? `px-2 py-1  text-xs font-medium ` : "") +
+                   "overflow-hidden text-ellipsis whitespace-nowrap block w-full"
                   }
+                  style={{ maxWidth: '100%' }}
                  >
                   {cell || "-"}
                  </span>
