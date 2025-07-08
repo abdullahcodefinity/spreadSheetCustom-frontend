@@ -55,14 +55,10 @@ function SortableHeader({ id, colIndex, children, ...props }: any) {
     top: 0,
     zIndex: 30, // higher than default
     background: style.background || "#f3f4f6", // fallback bg
+    width: props.width, // <-- set width from props
+    minWidth: '60px',
    }}
-   className={`relative group ${props.className || ""}`}
-   onClick={(e) => {
-    e.stopPropagation();
-    if (props.onClick) {
-     props.onClick(e);
-    }
-   }}
+   className={`relative group ${props.className ? props.className.replace(/w-\S+/g, '') : ""}`}
   >
    <div className="" style={{ position: 'relative' }}>
     <span
@@ -75,7 +71,18 @@ function SortableHeader({ id, colIndex, children, ...props }: any) {
       ⠿
     </span>
     <span className="w-full flex items-center justify-center gap-1">
-      {children}
+      {/* Move onClick here for header text only */}
+      <div
+        onClick={(e) => {
+          e.stopPropagation();
+          if (props.onClick) {
+            props.onClick(e);
+          }
+        }}
+        style={{ display: 'inline-block', width: '70%' }}
+      >
+        {children}
+      </div>
     </span>
     {/* Only show menu if not adjusting */}
     <button
@@ -88,6 +95,27 @@ function SortableHeader({ id, colIndex, children, ...props }: any) {
     >
       ⋮
     </button>
+    {/* Resizer handle */}
+    <span
+      data-no-dnd
+      onMouseDown={(e) => props.onResizeMouseDown && props.onResizeMouseDown(e, colIndex)}
+      style={{
+        position: 'absolute',
+        right: -4,
+
+        top: 0,
+        height: '100%',
+        width: '8px',
+        cursor: 'col-resize',
+        zIndex: 40,
+        display: 'block',
+        background: 'transparent',
+      }}
+      className="resize-handle group-hover:bg-blue-200"
+      title="Resize column"
+    >
+      {/* <svg style={{display:'block',margin:'auto',opacity:0.7}} width="8" height="20" viewBox="0 0 8 20"><rect x="3" y="4" width="2" height="12" rx="1" fill="#888"/></svg> */}
+    </span>
    </div>
   </th>
  );
@@ -183,6 +211,76 @@ export default function Spreadsheet() {
   colIndex: number;
  } | null>(null);
 
+ // 1. Track column widths in state
+ const DEFAULT_WIDTH = 150;
+ const [columnWidths, setColumnWidths] = useState<number[]>([]);
+ const resizingColRef = useRef<number | null>(null);
+ const startXRef = useRef<number>(0);
+ const startWidthRef = useRef<number>(0);
+ const [isResizing, setIsResizing] = useState(false);
+
+ // Initialize column widths when headers change
+ useEffect(() => {
+   if (!sheetId || columnHeaders.length === 0) return;
+   // Try to load from localStorage
+   const key = `spreadsheet-widths-${sheetId}`;
+   const stored = localStorage.getItem(key);
+   if (stored) {
+     try {
+       const parsed = JSON.parse(stored);
+       if (Array.isArray(parsed) && parsed.length === columnHeaders.length) {
+         setColumnWidths(parsed);
+         return;
+       }
+     } catch {}
+   }
+   // Fallback: default logic
+   setColumnWidths((prev) => {
+     if (prev.length !== columnHeaders.length) {
+       return columnHeaders.map((_, i) => prev[i] || DEFAULT_WIDTH);
+     }
+     return prev;
+   });
+ }, [sheetId, columnHeaders.length]);
+
+ // Persist columnWidths to localStorage when they change
+ useEffect(() => {
+   if (!sheetId || columnWidths.length === 0) return;
+   const key = `spreadsheet-widths-${sheetId}`;
+   localStorage.setItem(key, JSON.stringify(columnWidths));
+ }, [sheetId, columnWidths]);
+
+ // 2. Handle mouse events for resizing
+ useEffect(() => {
+   function onMouseMove(e: MouseEvent) {
+     if (resizingColRef.current !== null) {
+       const col = resizingColRef.current;
+       const delta = e.clientX - startXRef.current;
+       setColumnWidths((widths) => {
+         const newWidths = [...widths];
+         newWidths[col] = Math.max(60, startWidthRef.current + delta); // min width 60px
+         console.log(`Resizing column ${col}: new width =`, newWidths[col]);
+         return newWidths;
+       });
+     }
+   }
+   function onMouseUp() {
+     if (resizingColRef.current !== null) {
+       console.log(`Finished resizing column ${resizingColRef.current}`);
+     }
+     resizingColRef.current = null;
+     setIsResizing(false);
+   }
+   if (isResizing) {
+     window.addEventListener('mousemove', onMouseMove);
+     window.addEventListener('mouseup', onMouseUp);
+   }
+   return () => {
+     window.removeEventListener('mousemove', onMouseMove);
+     window.removeEventListener('mouseup', onMouseUp);
+   };
+ }, [isResizing]);
+
 
  useEffect(() => {
   const handleClick = (e: MouseEvent) => {
@@ -255,6 +353,17 @@ export default function Spreadsheet() {
    console.log(err, "Error moving row");
   }
  };
+
+ // 3. Pass width and resize handler to SortableHeader
+ function handleResizeMouseDown(e: React.MouseEvent, colIndex: number) {
+   e.preventDefault();
+   e.stopPropagation();
+   resizingColRef.current = colIndex;
+   startXRef.current = e.clientX;
+   startWidthRef.current = columnWidths[colIndex];
+   console.log(`Start resizing column ${colIndex} (start width: ${columnWidths[colIndex]})`);
+   setIsResizing(true);
+ }
 
 
 
@@ -337,143 +446,259 @@ export default function Spreadsheet() {
      users={users}
      onShare={handleShare}
     />
-    <div
-      className="overflow-auto"
-      ref={tableContainerRef}
-      style={{ maxHeight: "70vh" }} // or any height you want
-    >
-     <table className="min-w-full border border-gray-300 text-sm text-left table-fixed">
-      <DndContext
-       sensors={useSensors(
-        useSensor(PointerSensor, {
-          activationConstraint: { distance: 5 },
-          eventOptions: {
-            onPointerDown: (event: PointerEvent) => {
-              if ((event.target as HTMLElement)?.getAttribute('data-no-dnd') !== null) {
-                event.preventDefault();
-                event.stopPropagation();
-              }
-            }
-          }
-        })
-       )}
-       collisionDetection={closestCenter}
-       onDragEnd={handleColumnDragEnd}
-      >
-       <SortableContext
-        items={columnHeaders.map((_, i) => i.toString())}
-        strategy={horizontalListSortingStrategy}
-       >
-        <thead className="bg-gray-100">
-         <tr>
-          <th
-            className="border border-gray-300 px-3 py-2 text-center bg-gray-100"
-            style={{
-              width: 40,
-              minWidth: 40,
-              position: "sticky",
-              left: 0,
-              top: 0,          
-              zIndex: 50,      
-              background: "#f3f4f6",
-              boxShadow: "2px 0 2px -2px #ccc",
-            }}
-          >
-            #
-          </th>
-          {columnHeaders.map((header, colIndex) => (
-           <SortableHeader
-            key={colIndex}
-            id={colIndex.toString()}
-            colIndex={colIndex}
-          
-            onClick={() => {
-             handleHeaderClick(colIndex);
-            }}
-            onMenuClick={(e: React.MouseEvent) => {
-             const rect = (e.target as HTMLElement).getBoundingClientRect();
-             if (!hasUpdateColumn) {
-              errorToast("You do not have permission to update columns");
-              return;
-             }
-             setHeaderMenu({
-              colIndex,
-              x: rect.right,
-              y: rect.bottom,
-             });
-            }}
-            className={`border border-gray-300 px-3 py-2 text-center`}
-           >
-            {isLoading ? (
-             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
-            ) : editingHeader === colIndex ? (
-             <input
-              value={tempHeader}
-              autoFocus
-              onChange={(e) => setTempHeader(e.target.value)}
-              onBlur={() => saveHeader(colIndex)}
-              onKeyDown={(e) => {
-               if (e.key === "Enter") saveHeader(colIndex);
-               if (e.key === "Escape") {
-                setEditingHeader(null);
+    <div className="overflow-auto" ref={tableContainerRef} style={{ maxHeight: "70vh" }}>
+      
+      <table className="border border-gray-300 text-sm text-left table-fixed" style={{ minWidth: 'max-content' }}>
+       <DndContext
+        sensors={useSensors(
+         useSensor(PointerSensor, {
+           activationConstraint: { distance: 5 },
+           eventOptions: {
+             onPointerDown: (event: PointerEvent) => {
+               if ((event.target as HTMLElement)?.getAttribute('data-no-dnd') !== null) {
+                 event.preventDefault();
+                 event.stopPropagation();
                }
-              }}
-              className="w-full ml-4 mr-8  border-green-500 py-0.5 border rounded outline-none"
-             />
-            ) : (
-             <div className="flex items-center justify-center gap-1 ml-2 mr-4">
-              {header}
-             </div>
-            )}
-           </SortableHeader>
-          ))}
-         </tr>
-        </thead>
-       </SortableContext>
-      </DndContext>
-      <DndContext
-       sensors={useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-       )}
-       collisionDetection={closestCenter}
-       onDragEnd={handleRowDragEnd}
-      >
-       <SortableContext
-        items={data.map((_, i) => i.toString())}
-        strategy={verticalListSortingStrategy}
+             }
+           }
+         })
+        )}
+        collisionDetection={closestCenter}
+        onDragEnd={handleColumnDragEnd}
        >
-        <tbody>
-         {data.map((row, rowIndex) => (
-          <SortableRow key={rowIndex} id={rowIndex.toString()}>
-           <td
-            className="border border-gray-300 px-3 py-2 text-center font-medium bg-gray-50"
-            style={{
-              position: "sticky",
-              left: 0,
-              zIndex: 20,
-              background: "#f3f4f6",
-              width: 40,
-              minWidth: 40,
-            }}
+        <SortableContext
+         items={columnHeaders.map((_, i) => i.toString())}
+         strategy={horizontalListSortingStrategy}
+        >
+         <thead className="bg-gray-100">
+          <tr>
+           <th
+             className="border border-gray-300 px-3 py-2 text-center bg-gray-100"
+             style={{
+               width: 40,
+               minWidth: 40,
+               position: "sticky",
+               left: 0,
+               top: 0,          
+               zIndex: 50,      
+               background: "#f3f4f6",
+               boxShadow: "2px 0 2px -2px #ccc",
+             }}
            >
-            <span style={{ cursor: "grab" }}>⠿</span> {rowIndex + 1}
-           </td>
-           {row.map((cell, colIndex) => {
-            const colName = columnHeaders[colIndex];
-            const isEditing =
-             editingCell &&
-             editingCell.row === rowIndex &&
-             editingCell.col === colIndex;
-            const isDropdown = dropdownColumns[colName];
-            const cellWidth = '150px'; // Default width
+             #
+           </th>
+           {columnHeaders.map((header, colIndex) => (
+            <SortableHeader
+             key={colIndex}
+             id={colIndex.toString()}
+             colIndex={colIndex}
+             width={columnWidths[colIndex] || DEFAULT_WIDTH}
+             onResizeMouseDown={handleResizeMouseDown}
+             onClick={() => {
+              handleHeaderClick(colIndex);
+             }}
+             onMenuClick={(e: React.MouseEvent) => {
+              const rect = (e.target as HTMLElement).getBoundingClientRect();
+              if (!hasUpdateColumn) {
+               errorToast("You do not have permission to update columns");
+               return;
+              }
+              setHeaderMenu({
+               colIndex,
+               x: rect.right,
+               y: rect.bottom,
+              });
+             }}
+             className={`border border-gray-300 px-3 py-2 text-center`}
+            >
+             {isLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
+             ) : editingHeader === colIndex ? (
+              <input
+               value={tempHeader}
+               autoFocus
+               onChange={(e) => setTempHeader(e.target.value)}
+               onBlur={() => saveHeader(colIndex)}
+               onKeyDown={(e) => {
+                if (e.key === "Enter") saveHeader(colIndex);
+                if (e.key === "Escape") {
+                 setEditingHeader(null);
+                }
+               }}
+               className="w-full border-green-500 py-0.5 border rounded outline-none"
+              />
+             ) : (
+              <div className="flex items-center justify-center gap-1 ml-2 mr-4">
+               {header}
+              </div>
+             )}
+            </SortableHeader>
+           ))}
+          </tr>
+         </thead>
+        </SortableContext>
+       </DndContext>
+       <DndContext
+        sensors={useSensors(
+         useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+        )}
+        collisionDetection={closestCenter}
+        onDragEnd={handleRowDragEnd}
+       >
+        <SortableContext
+         items={data.map((_, i) => i.toString())}
+         strategy={verticalListSortingStrategy}
+        >
+         <tbody>
+          {data.map((row, rowIndex) => (
+           <SortableRow key={rowIndex} id={rowIndex.toString()}>
+            <td
+             className="border border-gray-300 px-3 py-2 text-center font-medium bg-gray-50"
+             style={{
+               position: "sticky",
+               left: 0,
+               zIndex: 20,
+               background: "#f3f4f6",
+               width: 40,
+               minWidth: 40,
+             }}
+            >
+             <span style={{ cursor: "grab" }}>⠿</span> {rowIndex + 1}
+            </td>
+            {row.map((cell, colIndex) => {
+             const colName = columnHeaders[colIndex];
+             const isEditing =
+              editingCell &&
+              editingCell.row === rowIndex &&
+              editingCell.col === colIndex;
+             const isDropdown = dropdownColumns[colName];
+             const cellWidth = columnWidths[colIndex] || DEFAULT_WIDTH;
 
-            if (isEditing) {
+             if (isEditing) {
+              return (
+               <td
+                key={colIndex}
+                className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
+                style={{ width: cellWidth, minWidth: '60px' }}
+               >
+                <div
+                 onClick={() => {
+                  if (clickTimerRef.current) {
+                   clearTimeout(clickTimerRef.current);
+                   clickTimerRef.current = null;
+                  }
+                  if (preventSingleClickRef.current) {
+                   preventSingleClickRef.current = false;
+                   return;
+                  }
+                  clickTimerRef.current = setTimeout(() => {
+                   handleCellClickWithScroll(rowIndex, colIndex);
+                   clickTimerRef.current = null;
+                  }, 200);
+                 }}
+                 onDoubleClick={() => {
+                  if (clickTimerRef.current) {
+                   clearTimeout(clickTimerRef.current);
+                   clickTimerRef.current = null;
+                  }
+                  preventSingleClickRef.current = true;
+                  if (
+                   !(
+                    editingCell?.row === rowIndex &&
+                    editingCell?.col === colIndex
+                   ) &&
+                   typeof cell === "string" &&
+                   /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
+                    cell.trim()
+                   )
+                  ) {
+                   let url = cell.trim();
+                   if (!/^https?:\/\//.test(url)) {
+                    url = "https://" + url;
+                   }
+                   window.open(url, "_blank", "noopener,noreferrer");
+                  }
+                 }}
+                 className={`min-h-[20px] ${
+                  hasUpdateRow
+                   ? "cursor-pointer hover:bg-gray-100"
+                   : "cursor-not-allowed opacity-75"
+                 }`}
+                >
+                 {isDropdown ? (
+                  <select
+                   value={tempValue}
+                   autoFocus
+                   onChange={(e) => setTempValue(e.target.value)}
+                   onBlur={() => saveCell(rowIndex, colIndex)}
+                   onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                     setEditingCell(null);
+                     setTempValue(data[rowIndex][colIndex]);
+                    }
+                   }}
+                   className="w-full px-2 py-1 border rounded outline-none bg-white"
+                  >
+                   <option value="">Select option</option>
+                   {dropdownColumns[colName].map((option) => (
+                    <option key={option} value={option}>
+                     {option}
+                    </option>
+                   ))}
+                  </select>
+                 ) : (
+                  <input
+                   type="text"
+                   value={tempValue}
+                   autoFocus
+                   onChange={(e) => setTempValue(e.target.value)}
+                   onBlur={() => saveCell(rowIndex, colIndex)}
+                   onKeyDown={(e) => {
+                    if (e.key === "Enter") saveCell(rowIndex, colIndex);
+                    if (e.key === "Escape") {
+                     setEditingCell(null);
+                     setTempValue(data[rowIndex][colIndex]);
+                    }
+                   }}
+                   className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
+                  />
+                 )}
+                </div>
+               </td>
+              );
+             }
+
              return (
               <td
                key={colIndex}
                className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
                style={{ width: cellWidth, minWidth: '60px' }}
               >
+               <button
+                className="absolute ml-3  mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
+                onClick={(e) => {
+                 e.stopPropagation();
+                 setContextMenu({
+                  row: rowIndex,
+                  col: colIndex,
+                  x: deviceType.mobile
+                   ? e.currentTarget.getBoundingClientRect().left - 190
+                   : deviceType.tab
+                   ? e.currentTarget.getBoundingClientRect().left - 360
+                   : e.currentTarget.getBoundingClientRect().left - 430,
+                  y: deviceType.mobile
+                   ? e.currentTarget.getBoundingClientRect().bottom +
+                     window.scrollY -
+                     150
+                   : e.currentTarget.getBoundingClientRect().bottom +
+                     window.scrollY -
+                     165,
+                 });
+                }}
+               >
+                ⋮
+               </button>
+
                <div
                 onClick={() => {
                  if (clickTimerRef.current) {
@@ -497,8 +722,7 @@ export default function Spreadsheet() {
                  preventSingleClickRef.current = true;
                  if (
                   !(
-                   editingCell?.row === rowIndex &&
-                   editingCell?.col === colIndex
+                   editingCell?.row === rowIndex && editingCell?.col === colIndex
                   ) &&
                   typeof cell === "string" &&
                   /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
@@ -512,158 +736,42 @@ export default function Spreadsheet() {
                   window.open(url, "_blank", "noopener,noreferrer");
                  }
                 }}
-                className={`min-h-[20px] ${
+                className={`min-h-[20px] border mr-4 ${
                  hasUpdateRow
                   ? "cursor-pointer hover:bg-gray-100"
                   : "cursor-not-allowed opacity-75"
                 }`}
                >
-                {isDropdown ? (
-                 <select
-                  value={tempValue}
-                  autoFocus
-                  onChange={(e) => setTempValue(e.target.value)}
-                  onBlur={() => saveCell(rowIndex, colIndex)}
-                  onKeyDown={(e) => {
-                   if (e.key === "Escape") {
-                    setEditingCell(null);
-                    setTempValue(data[rowIndex][colIndex]);
-                   }
-                  }}
-                  className="w-full px-2 py-1 border rounded outline-none bg-white"
+                {typeof cell === "string" &&
+                /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
+                 cell.trim()
+                ) ? (
+                 <span
+                  className="text-blue-600 underline cursor-pointer"
+                  title="Double-click to open link"
                  >
-                  <option value="">Select option</option>
-                  {dropdownColumns[colName].map((option) => (
-                   <option key={option} value={option}>
-                    {option}
-                   </option>
-                  ))}
-                 </select>
+                  {cell}
+                 </span>
                 ) : (
-                 <input
-                  type="text"
-                  value={tempValue}
-                  autoFocus
-                  onChange={(e) => setTempValue(e.target.value)}
-                  onBlur={() => saveCell(rowIndex, colIndex)}
-                  onKeyDown={(e) => {
-                   if (e.key === "Enter") saveCell(rowIndex, colIndex);
-                   if (e.key === "Escape") {
-                    setEditingCell(null);
-                    setTempValue(data[rowIndex][colIndex]);
-                   }
-                  }}
-                  className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
-                 />
+                 <span
+                  className={
+                   cell ? `px-2 py-1  text-xs font-medium ` : ""
+                  }
+                 >
+                  {cell || "-"}
+                 </span>
                 )}
                </div>
               </td>
              );
-            }
-
-            return (
-             <td
-              key={colIndex}
-              className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
-              style={{ width: cellWidth, minWidth: '60px' }}
-             >
-              <button
-               className="absolute ml-3 top-3 mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
-               onClick={(e) => {
-                e.stopPropagation();
-                setContextMenu({
-                 row: rowIndex,
-                 col: colIndex,
-                 x: deviceType.mobile
-                  ? e.currentTarget.getBoundingClientRect().left - 190
-                  : deviceType.tab
-                  ? e.currentTarget.getBoundingClientRect().left - 360
-                  : e.currentTarget.getBoundingClientRect().left - 430,
-                 y: deviceType.mobile
-                  ? e.currentTarget.getBoundingClientRect().bottom +
-                    window.scrollY -
-                    150
-                  : e.currentTarget.getBoundingClientRect().bottom +
-                    window.scrollY -
-                    165,
-                });
-               }}
-              >
-               ⋮
-              </button>
-
-              <div
-               onClick={() => {
-                if (clickTimerRef.current) {
-                 clearTimeout(clickTimerRef.current);
-                 clickTimerRef.current = null;
-                }
-                if (preventSingleClickRef.current) {
-                 preventSingleClickRef.current = false;
-                 return;
-                }
-                clickTimerRef.current = setTimeout(() => {
-                 handleCellClickWithScroll(rowIndex, colIndex);
-                 clickTimerRef.current = null;
-                }, 200);
-               }}
-               onDoubleClick={() => {
-                if (clickTimerRef.current) {
-                 clearTimeout(clickTimerRef.current);
-                 clickTimerRef.current = null;
-                }
-                preventSingleClickRef.current = true;
-                if (
-                 !(
-                  editingCell?.row === rowIndex && editingCell?.col === colIndex
-                 ) &&
-                 typeof cell === "string" &&
-                 /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
-                  cell.trim()
-                 )
-                ) {
-                 let url = cell.trim();
-                 if (!/^https?:\/\//.test(url)) {
-                  url = "https://" + url;
-                 }
-                 window.open(url, "_blank", "noopener,noreferrer");
-                }
-               }}
-               className={`min-h-[20px] border mr-4 ${
-                hasUpdateRow
-                 ? "cursor-pointer hover:bg-gray-100"
-                 : "cursor-not-allowed opacity-75"
-               }`}
-              >
-               {typeof cell === "string" &&
-               /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
-                cell.trim()
-               ) ? (
-                <span
-                 className="text-blue-600 underline cursor-pointer"
-                 title="Double-click to open link"
-                >
-                 {cell}
-                </span>
-               ) : (
-                <span
-                 className={
-                  cell ? `px-2 py-1  text-xs font-medium ` : ""
-                 }
-                >
-                 {cell || "-"}
-                </span>
-               )}
-              </div>
-             </td>
-            );
-           })}
-          </SortableRow>
-         ))}
-        </tbody>
-       </SortableContext>
-      </DndContext>
-     </table>
+            })}
+           </SortableRow>
+          ))}
+         </tbody>
+        </SortableContext>
+       </DndContext>
+      </table>
+      {/* Place overlays/modals here if needed */}
     </div>
     {(hasAddColumn || hasDeleteColumn || hasAddRow || hasDeleteRow) && (
      <ContextMenu
