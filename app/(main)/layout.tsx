@@ -33,7 +33,7 @@ export default function RootLayout({
 
       <Header />
       <Sidebar />
-      <main className=" min-h-screen pt-10 bg-gray-50 md:ml-64 transition-all">
+      <main className=" min-h-screen  bg-gray-50 md:ml-64 transition-all">
         <div className="p-4 sm:p-6">{children}</div>
       </main>
 

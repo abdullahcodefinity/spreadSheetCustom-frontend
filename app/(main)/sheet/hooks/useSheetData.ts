@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import useToast from "@/app/hooks/useToast";
 import useAuth from "@/app/hooks/useAuth";
@@ -8,7 +8,7 @@ import usePostData from "@/app/hooks/ usePostData";
 import { Url } from "@/src/api";
 import useUpdateData from "@/app/hooks/ useUpdateData";
 import useFetchData from "@/app/hooks/useFetchData";
-import useGetById from "@/app/hooks/useGetById";
+
 import { BackendSpreadsheetData, ContextMenuTarget } from "@/app/types";
 
 // Add this type for dropdown columns
@@ -58,10 +58,12 @@ export const useSheetData = (sheetId: string | undefined) => {
   isNavigate: false,
  });
 
- const { mutate: updateRow } = useUpdateData({
+ const { mutate: updateRow ,refetchData} = useUpdateData({
   URL: Url.updateRow(Number(sheetId), rowIndex),
   link: "",
   formData: false,
+  autoRefetch:false,
+  skipNavigation:true
  });
 
  const {
@@ -171,7 +173,7 @@ export const useSheetData = (sheetId: string | undefined) => {
  };
 
  // Fetch initial sheet data
- const { data: sheetData, isLoading: isSheetLoading } = useFetchData({
+ const { data: sheetData, isLoading: isSheetLoading} = useFetchData({
   URL: Url.getSheet(Number(sheetId)),
   key: ["sheet", DropUpdate, DropRemoveUpdate],
   enabled: !!sheetId,
@@ -184,7 +186,7 @@ export const useSheetData = (sheetId: string | undefined) => {
   enabled: !!sheetId,
  });
 
- console.log(sheetData,'SheeetDATA::::>>')
+
 
  useEffect(() => {
   if (sheetData) {
@@ -624,12 +626,7 @@ export const useSheetData = (sheetId: string | undefined) => {
   setPendingScrollRestore(true);
  };
 
- useLayoutEffect(() => {
-  if (pendingScrollRestore && tableContainerRef.current) {
-   tableContainerRef.current.scrollTop = lastScrollTop.current;
-   setPendingScrollRestore(false);
-  }
- }, [data, editingCell, pendingScrollRestore]);
+
 
  return {
   // State
@@ -657,6 +654,7 @@ export const useSheetData = (sheetId: string | undefined) => {
   setSelectedUser,
   setColumnHeaders,
   setData,
+  refetchData,
 
   // Permission flags (granular)
   hasAddColumn: checkPermissions(sheetData).hasAddColumn,

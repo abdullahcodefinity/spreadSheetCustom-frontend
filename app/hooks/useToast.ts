@@ -6,7 +6,9 @@ const useToast = (): ToastHook => {
     
     toast.remove();
     toast.success(message, {
-      position: "top-right",
+      position: "top-center",
+      style: {marginTop: '50px'},
+
       duration: 5000,
     });
   };
@@ -14,16 +16,18 @@ const useToast = (): ToastHook => {
   const errorToast = (message: string): void => {
     toast.remove();
     toast.error(message, {
-      position: "top-right",
+      position: "top-center",
+      style: {marginTop: '50px'},
+
     });
   };
 
   const warningToast = (message: string): void => {
     const warningOptions: ToastOptions = {
       duration: 8000,
-      position: 'top-right',
+      position: 'top-center',
       // Styling
-      style: {top: '1040px'},
+      style: {top: '50px'},
       className: '',
       // Custom Icon
       icon: '⚠️',

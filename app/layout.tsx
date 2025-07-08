@@ -5,7 +5,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import { useState, useEffect } from "react";
-import { LoaderContext, AuthContext } from "./context";
+import {  AuthContext } from "./context";
 import keys from "./common/keys";
 
 import {
@@ -62,7 +62,7 @@ export default function RootLayout({
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                 </div>
               )}
-              <Toaster position="top-right"  /> 
+              <Toaster />
             </QueryClientProvider>
           </AuthContext.Provider>
         {/* </LoaderContext.Provider> */}

@@ -56,7 +56,7 @@ export default function SheetList() {
  }
 
  return (
-  <>
+  <div className="pt-12 px-6">
    <div className="flex justify-between items-center mb-4">
     <h1 className="text-xl font-bold">Sheets</h1>
     {!isAddingNew && currentUser.role === "SuperAdmin" && (
@@ -230,10 +230,10 @@ export default function SheetList() {
            </div>
           </div>
          ) : (
-          <div className="flex items-center">
-           <Link className="flex-1 block p-4" href={`/sheet/${sheet.id}`}>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center">
+           <Link className="flex-1 block p-4 w-full" href={`/sheet/${sheet.id}`}>
             <div className="flex flex-col">
-             <span className="font-medium truncate max-w-[290px] inline-block" title={sheet.name}>{sheet.name}</span>
+             <span className="font-medium truncate max-w-[200px] sm:max-w-[290px] inline-block" title={sheet.name}>{sheet.name}</span>
              <div className="text-sm text-gray-600 mt-1">
               <span>
                {sheet?.columns?.length} columns • {sheet?.sheetData?.length}{" "}
@@ -242,7 +242,7 @@ export default function SheetList() {
              </div>
             </div>
            </Link>
-           <div className="flex items-center gap-3 pr-4 ">
+           <div className="flex items-center gap-3 p-4 sm:pr-4 sm:p-0 border-t sm:border-t-0 w-full sm:w-auto">
             { currentUser.role === "SuperAdmin" && (
              <button
               onClick={() => handleEdit(sheet)}
@@ -271,6 +271,6 @@ export default function SheetList() {
      </div>
     </>
    )}
-  </>
+  </div>
  );
 }

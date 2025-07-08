@@ -37,7 +37,7 @@ export default function UserList() {
 
  if (isLoading) {
   return (
-   <div className="min-h-screen bg-gray-50 py-8">
+   <div className="min-h-screen  bg-gray-50 py-8">
     <div className="max-w-7xl mx-auto px-4">
      <div className="flex justify-center items-center h-64">
       <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -49,7 +49,7 @@ export default function UserList() {
  console.log(sheetModal?.selectedUser,'KKKKKK')
 
  return (
-  <div className="min-h-screen bg-gray-50 py-8">
+  <div className="min-h-screen mt-3 bg-gray-50 py-8">
    <DeleteModal
     isShow={deleteModal.isShow}
     setIsShow={(show) => setDeleteModal((prev) => ({ ...prev, isShow: show }))}

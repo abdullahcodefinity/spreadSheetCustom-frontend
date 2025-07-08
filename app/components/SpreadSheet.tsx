@@ -25,7 +25,7 @@ import ShareModal from "./modal/ShareModal";
 import useAuth from "../hooks/useAuth";
 import useToast from "../hooks/useToast";
 
-function SortableHeader({ id, children, ...props }: any) {
+function SortableHeader({ id, colIndex, children, ...props }: any) {
  const {
   attributes,
   listeners,
@@ -38,38 +38,55 @@ function SortableHeader({ id, children, ...props }: any) {
   transform: CSS.Transform.toString(transform),
   transition,
   opacity: isDragging ? 0.5 : 1,
-  cursor: "grab",
+  cursor: "default",
   background: isDragging ? "#e0e7ff" : undefined,
   zIndex: isDragging ? 10 : undefined,
- };
+  width: '150px',
+  minWidth: '60px',
+  position: 'relative',
+ } as React.CSSProperties;
+
  return (
   <th
    ref={setNodeRef}
-   style={style}
-   {...attributes}
-   {...listeners}
+   style={{
+    ...style,
+    position: "sticky",
+    top: 0,
+    zIndex: 30, // higher than default
+    background: style.background || "#f3f4f6", // fallback bg
+   }}
    className={`relative group ${props.className || ""}`}
    onClick={(e) => {
-    // Stop propagation to prevent drag handlers from interfering
     e.stopPropagation();
     if (props.onClick) {
      props.onClick(e);
     }
    }}
   >
-   <div className="flex items-center justify-center gap-1">
-    {children}
-    {/* <span style={{ cursor: "grab", marginLeft: 4 }}>⠿</span> */}
-
-    <button
-     type="button"
-     className="ml-7 hover:border hover:border-gray-400 rounded w-8 text-xl opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 top-1/2 -translate-y-1/2"
-     onClick={(e) => {
-      e.stopPropagation(); // Prevent click from bubbling to parent
-      props.onMenuClick(e);
-     }}
+   <div className="" style={{ position: 'relative' }}>
+    <span
+      {...attributes}
+      {...listeners}
+      className="drag-handle opacity-0 group-hover:opacity-100 transition-opacity cursor-grab select-none  text-lg"
+      style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }}
+      title="Drag to reorder column"
     >
-     ⋮
+      ⠿
+    </span>
+    <span className="w-full flex items-center justify-center gap-1">
+      {children}
+    </span>
+    {/* Only show menu if not adjusting */}
+    <button
+      type="button"
+      className="hover:border hover:border-gray-400 rounded w-3 opacity-0 group-hover:opacity-100 transition-opacity absolute right-1 top-1/2 -translate-y-1/2"
+      onClick={(e) => {
+        e.stopPropagation();
+        props.onMenuClick(e);
+      }}
+    >
+      ⋮
     </button>
    </div>
   </th>
@@ -103,7 +120,7 @@ export default function Spreadsheet() {
  const params = useParams();
  const sheetId = params?.id;
  const deviceType = useDeviceType();
- const router = useRouter();
+
  const clickTimerRef = useRef<NodeJS.Timeout | null>(null);
  const preventSingleClickRef = useRef(false);
  const tableContainerRef = useRef<HTMLDivElement>(null);
@@ -155,15 +172,7 @@ export default function Spreadsheet() {
   getColumnLabel,
  } = useSheetData(sheetId as string);
 
- console.log(
-  hasAddColumn,
-  hasDeleteColumn,
-  hasUpdateColumn,
-  hasAddRow,
-  hasDeleteRow,
-  hasUpdateRow,
-  "PERMISSIONS"
- );
+
 
  const [headerMenu, setHeaderMenu] = useState<{
   colIndex: number;
@@ -173,88 +182,7 @@ export default function Spreadsheet() {
  const [dropdownModal, setDropdownModal] = useState<{
   colIndex: number;
  } | null>(null);
- const [isSaving, setIsSaving] = useState(false);
 
- // Save scroll position before making changes
- const saveScrollPosition = () => {
-  if (tableContainerRef.current) {
-   const scrollPosition = tableContainerRef.current.scrollTop;
-   sessionStorage.setItem('spreadsheetScrollPosition', scrollPosition.toString());
-  }
- };
-
- // Restore scroll position after data changes
- const restoreScrollPosition = () => {
-  const scrollPosition = sessionStorage.getItem('spreadsheetScrollPosition');
-  if (scrollPosition && tableContainerRef.current) {
-   // Use requestAnimationFrame to ensure DOM is ready
-   requestAnimationFrame(() => {
-    if (tableContainerRef.current) {
-     tableContainerRef.current.scrollTop = parseInt(scrollPosition, 10);
-     sessionStorage.removeItem('spreadsheetScrollPosition');
-    }
-   });
-  }
- };
-
- // Enhanced saveCell function with scroll persistence
- const handleSaveCell = async (rowIndex: number, colIndex: number) => {
-  saveScrollPosition();
-  await saveCell(rowIndex, colIndex);
-  // Restore scroll position after a longer delay to ensure DOM updates are complete
-  setTimeout(restoreScrollPosition, 150);
- };
-
- // Enhanced saveHeader function with scroll persistence
- const handleSaveHeader = async (colIndex: number) => {
-  saveScrollPosition();
-  await saveHeader(colIndex);
-  setTimeout(restoreScrollPosition, 150);
- };
-
- // Custom blur handler that ensures scroll restoration
- const handleCellBlur = async (rowIndex: number, colIndex: number) => {
-  if (isSaving) return; // Prevent multiple saves
-  setIsSaving(true);
-  saveScrollPosition();
-  await saveCell(rowIndex, colIndex);
-  // Use multiple attempts to restore scroll position
-  setTimeout(() => {
-    restoreScrollPosition();
-    setIsSaving(false);
-  }, 100);
-  setTimeout(restoreScrollPosition, 200);
-  setTimeout(restoreScrollPosition, 300);
- };
-
- // Custom header blur handler
- const handleHeaderBlur = async (colIndex: number) => {
-  if (isSaving) return; // Prevent multiple saves
-  setIsSaving(true);
-  saveScrollPosition();
-  await saveHeader(colIndex);
-  // Use multiple attempts to restore scroll position
-  setTimeout(() => {
-    restoreScrollPosition();
-    setIsSaving(false);
-  }, 100);
-  setTimeout(restoreScrollPosition, 200);
-  setTimeout(restoreScrollPosition, 300);
- };
-
- // Enhanced row operations with scroll persistence
- const handleRowOperationWithScroll = async (operation: "add" | "delete" | "move", params: number | { sourceIndex: number; targetIndex: number }) => {
-  saveScrollPosition();
-  await handleRowOperation(operation, params);
-  setTimeout(restoreScrollPosition, 100);
- };
-
- // Enhanced column operations with scroll persistence
- const handleColumnOperationWithScroll = async (operation: "add" | "update" | "delete" | "move", params: { index?: number; newName?: string; sourceIndex?: number; targetIndex?: number }) => {
-  saveScrollPosition();
-  await handleColumnOperation(operation, params);
-  setTimeout(restoreScrollPosition, 100);
- };
 
  useEffect(() => {
   const handleClick = (e: MouseEvent) => {
@@ -270,20 +198,7 @@ export default function Spreadsheet() {
    if (!target.closest(".dropdown-modal")) {
     setDropdownModal(null);
    }
-   
-   // Handle clicking outside editing areas to restore scroll
-   if (editingCell && !target.closest('input, select')) {
-    // If clicking outside input/select while editing, restore scroll
-    setTimeout(restoreScrollPosition, 100);
-    setTimeout(restoreScrollPosition, 200);
-    setTimeout(restoreScrollPosition, 300);
-   }
-   if (editingHeader !== null && !target.closest('input')) {
-    // If clicking outside header input while editing, restore scroll
-    setTimeout(restoreScrollPosition, 100);
-    setTimeout(restoreScrollPosition, 200);
-    setTimeout(restoreScrollPosition, 300);
-   }
+   // Remove scroll restoration on click outside editing areas
   };
   const handleEsc = (e: KeyboardEvent) => {
    if (e.key === "Escape") {
@@ -309,7 +224,6 @@ export default function Spreadsheet() {
   const newIndex = Number(over.id);
 
   try {
-   saveScrollPosition();
    const newHeaders = arrayMove(columnHeaders, oldIndex, newIndex);
    const newData = data.map((row) => arrayMove(row, oldIndex, newIndex));
 
@@ -319,7 +233,6 @@ export default function Spreadsheet() {
    });
    setColumnHeaders(newHeaders);
    setData(newData);
-   setTimeout(restoreScrollPosition, 100);
   } catch (err) {
    console.log(err, "RRRRRR");
   }
@@ -332,70 +245,42 @@ export default function Spreadsheet() {
   const oldIndex = Number(active.id);
   const newIndex = Number(over.id);
   try {
-   saveScrollPosition();
    await handleRowOperation("move", {
     sourceIndex: oldIndex,
     targetIndex: newIndex,
    });
    const newData = arrayMove(data, oldIndex, newIndex);
    setData(newData);
-   setTimeout(restoreScrollPosition, 100);
   } catch (err) {
    console.log(err, "Error moving row");
   }
  };
 
- // Restore scroll position when data loads or changes
- useEffect(() => {
-  if (data.length > 0 && !isLoading) {
-   const scrollPosition = sessionStorage.getItem('spreadsheetScrollPosition');
-   if (scrollPosition && tableContainerRef.current) {
-    // Use requestAnimationFrame to ensure DOM is updated
-    requestAnimationFrame(() => {
-     if (tableContainerRef.current) {
-      tableContainerRef.current.scrollTop = parseInt(scrollPosition, 10);
-      sessionStorage.removeItem('spreadsheetScrollPosition');
-     }
-    });
-   }
-  }
- }, [data, isLoading]);
 
- useEffect(() => {
-  const handleScroll = () => {
-   const container = tableContainerRef.current;
-   if (!container) return;
-
-   // Check if scrolled to the bottom
-   if (container.scrollTop + container.clientHeight >= container.scrollHeight) {
-    // Log scroll properties
-    console.log("Scrolled to bottom!");
-    console.log({
-     scrollTop: container.scrollTop,
-     scrollHeight: container.scrollHeight,
-     clientHeight: container.clientHeight,
-    });
-   }
-  };
-
-  const container = tableContainerRef.current;
-  if (container) {
-   container.addEventListener("scroll", handleScroll);
-  }
-  return () => {
-   if (container) {
-    container.removeEventListener("scroll", handleScroll);
-   }
-  };
- }, []);
 
  return (
   <>
-   <div className="p-6 space-y-4 py-10 relative">
-    <div className="mb-6">
+   <div className="p-6 relative">
+    <div className="mb-1 flex justify-between ">
      <h1 className="text-3xl font-bold text-gray-800 capitalize inline-block pb-2 border-b-2 border-blue-500">
       {spreadsheetName}
      </h1>
+     <div className="flex flex-wrap gap-2">
+      {currentUser?.role === "SuperAdmin" && (
+       <button
+        onClick={() => setIsShareModalOpen(true)}
+        className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+       >
+        Share
+       </button>
+      )}
+      <button
+       onClick={exportToCSV}
+       className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
+      >
+       Export CSV
+      </button>
+     </div>
     </div>
     {/* Permission Status Indicator */}
     <div className="mb-4">
@@ -445,35 +330,32 @@ export default function Spreadsheet() {
      )}
     </div>
 
-    <div className="flex justify-between items-center">
-     <div className="flex flex-wrap gap-2">
-      {currentUser?.role === "SuperAdmin" && (
-       <button
-        onClick={() => setIsShareModalOpen(true)}
-        className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-       >
-        Share
-       </button>
-      )}
-      <button
-       onClick={exportToCSV}
-       className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700"
-      >
-       Export CSV
-      </button>
-     </div>
-    </div>
+ 
     <ShareModal
      isOpen={isShareModalOpen}
      onClose={() => setIsShareModalOpen(false)}
      users={users}
      onShare={handleShare}
     />
-    <div className="overflow-auto" ref={tableContainerRef}>
-     <table className="min-w-full border border-gray-300 text-sm text-left">
+    <div
+      className="overflow-auto"
+      ref={tableContainerRef}
+      style={{ maxHeight: "70vh" }} // or any height you want
+    >
+     <table className="min-w-full border border-gray-300 text-sm text-left table-fixed">
       <DndContext
        sensors={useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+        useSensor(PointerSensor, {
+          activationConstraint: { distance: 5 },
+          eventOptions: {
+            onPointerDown: (event: PointerEvent) => {
+              if ((event.target as HTMLElement)?.getAttribute('data-no-dnd') !== null) {
+                event.preventDefault();
+                event.stopPropagation();
+              }
+            }
+          }
+        })
        )}
        collisionDetection={closestCenter}
        onDragEnd={handleColumnDragEnd}
@@ -484,13 +366,28 @@ export default function Spreadsheet() {
        >
         <thead className="bg-gray-100">
          <tr>
-          <th className="border border-gray-300 px-3 py-2 text-center">#</th>
+          <th
+            className="border border-gray-300 px-3 py-2 text-center bg-gray-100"
+            style={{
+              width: 40,
+              minWidth: 40,
+              position: "sticky",
+              left: 0,
+              top: 0,          
+              zIndex: 50,      
+              background: "#f3f4f6",
+              boxShadow: "2px 0 2px -2px #ccc",
+            }}
+          >
+            #
+          </th>
           {columnHeaders.map((header, colIndex) => (
            <SortableHeader
             key={colIndex}
             id={colIndex.toString()}
-            onClick={() => {
+            colIndex={colIndex}
           
+            onClick={() => {
              handleHeaderClick(colIndex);
             }}
             onMenuClick={(e: React.MouseEvent) => {
@@ -510,24 +407,21 @@ export default function Spreadsheet() {
             {isLoading ? (
              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mx-auto"></div>
             ) : editingHeader === colIndex ? (
-                                       <input
+             <input
               value={tempHeader}
               autoFocus
               onChange={(e) => setTempHeader(e.target.value)}
-              onFocus={() => saveScrollPosition()}
-              onBlur={() => handleHeaderBlur(colIndex)}
+              onBlur={() => saveHeader(colIndex)}
               onKeyDown={(e) => {
-               if (e.key === "Enter") handleSaveHeader(colIndex);
+               if (e.key === "Enter") saveHeader(colIndex);
                if (e.key === "Escape") {
-                saveScrollPosition();
                 setEditingHeader(null);
-                setTimeout(restoreScrollPosition, 100);
                }
               }}
-              className="w-full  mr-8 py-0.5 border rounded outline-none"
+              className="w-full ml-4 mr-8  border-green-500 py-0.5 border rounded outline-none"
              />
             ) : (
-             <div className="flex items-center justify-center gap-1 mr-4">
+             <div className="flex items-center justify-center gap-1 ml-2 mr-4">
               {header}
              </div>
             )}
@@ -551,7 +445,17 @@ export default function Spreadsheet() {
         <tbody>
          {data.map((row, rowIndex) => (
           <SortableRow key={rowIndex} id={rowIndex.toString()}>
-           <td className="border border-gray-300 px-3 py-2 text-center font-medium bg-gray-50">
+           <td
+            className="border border-gray-300 px-3 py-2 text-center font-medium bg-gray-50"
+            style={{
+              position: "sticky",
+              left: 0,
+              zIndex: 20,
+              background: "#f3f4f6",
+              width: 40,
+              minWidth: 40,
+            }}
+           >
             <span style={{ cursor: "grab" }}>⠿</span> {rowIndex + 1}
            </td>
            {row.map((cell, colIndex) => {
@@ -561,40 +465,15 @@ export default function Spreadsheet() {
              editingCell.row === rowIndex &&
              editingCell.col === colIndex;
             const isDropdown = dropdownColumns[colName];
+            const cellWidth = '150px'; // Default width
 
             if (isEditing) {
              return (
               <td
                key={colIndex}
                className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
+               style={{ width: cellWidth, minWidth: '60px' }}
               >
-               {/* {hasUpdateColumn && (
-                <button
-                 className="absolute top-1  border  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-2xl"
-                 onClick={(e) => {
-                  e.stopPropagation();
-                  setContextMenu({
-                   row: rowIndex,
-                   col: colIndex,
-                   x: deviceType.mobile
-                    ? e.currentTarget.getBoundingClientRect().left - 190
-                    : deviceType.tab
-                    ? e.currentTarget.getBoundingClientRect().left - 360
-                    : e.currentTarget.getBoundingClientRect().left - 430,
-                   y: deviceType.mobile
-                    ? e.currentTarget.getBoundingClientRect().bottom +
-                      window.scrollY -
-                      150
-                    : e.currentTarget.getBoundingClientRect().bottom +
-                      window.scrollY -
-                      165,
-                  });
-                 }}
-                >
-                 ⋮
-                </button>
-               )} */}
-
                <div
                 onClick={() => {
                  if (clickTimerRef.current) {
@@ -644,14 +523,11 @@ export default function Spreadsheet() {
                   value={tempValue}
                   autoFocus
                   onChange={(e) => setTempValue(e.target.value)}
-                  onFocus={() => saveScrollPosition()}
-                  onBlur={() => handleCellBlur(rowIndex, colIndex)}
+                  onBlur={() => saveCell(rowIndex, colIndex)}
                   onKeyDown={(e) => {
                    if (e.key === "Escape") {
-                    saveScrollPosition();
                     setEditingCell(null);
                     setTempValue(data[rowIndex][colIndex]);
-                    setTimeout(restoreScrollPosition, 100);
                    }
                   }}
                   className="w-full px-2 py-1 border rounded outline-none bg-white"
@@ -664,20 +540,17 @@ export default function Spreadsheet() {
                   ))}
                  </select>
                 ) : (
-                                                   <input
+                 <input
                   type="text"
                   value={tempValue}
                   autoFocus
                   onChange={(e) => setTempValue(e.target.value)}
-                  onFocus={() => saveScrollPosition()}
-                  onBlur={() => handleCellBlur(rowIndex, colIndex)}
+                  onBlur={() => saveCell(rowIndex, colIndex)}
                   onKeyDown={(e) => {
-                   if (e.key === "Enter") handleSaveCell(rowIndex, colIndex);
+                   if (e.key === "Enter") saveCell(rowIndex, colIndex);
                    if (e.key === "Escape") {
-                    saveScrollPosition();
                     setEditingCell(null);
                     setTempValue(data[rowIndex][colIndex]);
-                    setTimeout(restoreScrollPosition, 100);
                    }
                   }}
                   className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
@@ -692,9 +565,10 @@ export default function Spreadsheet() {
              <td
               key={colIndex}
               className="border border-gray-300 px-3 py-2 relative group min-w-[100px]"
+              style={{ width: cellWidth, minWidth: '60px' }}
              >
               <button
-               className="absolute ml-3 top-1 mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
+               className="absolute ml-3 top-3 mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
                onClick={(e) => {
                 e.stopPropagation();
                 setContextMenu({
@@ -796,9 +670,9 @@ export default function Spreadsheet() {
       contextMenu={contextMenu}
       setContextMenu={setContextMenu}
       //@ts-ignore
-      handleRowOperation={handleRowOperationWithScroll}
+      handleRowOperation={handleRowOperation}
       //@ts-ignore
-      handleColumnOperation={handleColumnOperationWithScroll}
+      handleColumnOperation={handleColumnOperation}
       columnHeaders={columnHeaders}
       getColumnLabel={getColumnLabel}
       hasAddColumn={hasAddColumn}

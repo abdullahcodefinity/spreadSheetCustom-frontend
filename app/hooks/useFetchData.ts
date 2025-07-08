@@ -19,7 +19,7 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
       status: response.status
     };
   };
-  const { isLoading, error, data } = useQuery({
+  const { isLoading, error, data,refetch } = useQuery({
     queryKey: [key, page],
     queryFn: getData,
     enabled
@@ -30,7 +30,8 @@ const useFetchData = ({ URL, key, page, enabled }: FetchDataParams): FetchRespon
   return {
     data: data?.data,
     isLoading,
-    status: status
+    status: status,
+    refetch
   };
 };
 

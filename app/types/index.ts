@@ -272,6 +272,7 @@ export interface FetchResponse {
   data: any;
   isLoading: boolean;
   status?: number | null;
+  refetch: () => void;
 }
 
 export interface GetByIdParams {
