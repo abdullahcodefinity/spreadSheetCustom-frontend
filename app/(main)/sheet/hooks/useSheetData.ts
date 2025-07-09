@@ -579,14 +579,15 @@ export const useSheetData = (sheetId: string | undefined) => {
   setTempValue(data[row][col] || "");
  };
 
- const saveCell = async (row: number, col: number) => {
+ // Change saveCell to accept value
+const saveCell = async (row: number, col: number, value: string) => {
   try {
-   await handleCellEdit(row, col, tempValue);
-   setEditingCell(null);
+    await handleCellEdit(row, col, value);
+    setEditingCell(null);
   } catch (err) {
-   errorToast("Failed to update cell");
+    errorToast("Failed to update cell");
   }
- };
+};
 
  const handleHeaderClick = (colIndex: number) => {
   if (!checkPermissions(sheetData).hasUpdateColumn) {

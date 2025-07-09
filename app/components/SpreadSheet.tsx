@@ -52,7 +52,7 @@ function SortableHeader({ id, colIndex, children, ...props }: any) {
    style={{
     ...style,
     position: "sticky",
-    top: 0,
+    top: -1,
     zIndex: 30, // higher than default
     background: style.background || "#f3f4f6", // fallback bg
     width: props.width,
@@ -102,7 +102,7 @@ function SortableHeader({ id, colIndex, children, ...props }: any) {
       onMouseDown={(e) => props.onResizeMouseDown && props.onResizeMouseDown(e, colIndex)}
       style={{
         position: 'absolute',
-        right: -4,
+        right: -14,
 
         top: 0,
         height: '100%',
@@ -138,9 +138,10 @@ function SortableRow({ id, children, ...props }: any) {
   background: isDragging ? "#e0e7ff" : undefined,
   zIndex: isDragging ? 10 : undefined,
  };
+ // Instead of spreading listeners/attributes on <tr>, pass them as props
  return (
-  <tr ref={setNodeRef} style={style} {...attributes} {...listeners} {...props}>
-   {children}
+  <tr ref={setNodeRef} style={style} {...props}>
+   {typeof children === 'function' ? children({ attributes, listeners }) : children}
   </tr>
  );
 }
@@ -325,6 +326,7 @@ export default function Spreadsheet() {
   try {
    const newHeaders = arrayMove(columnHeaders, oldIndex, newIndex);
    const newData = data.map((row) => arrayMove(row, oldIndex, newIndex));
+   const newWidths = arrayMove(columnWidths, oldIndex, newIndex); // <-- add this
 
    await handleColumnOperation("move", {
     sourceIndex: oldIndex,
@@ -332,6 +334,7 @@ export default function Spreadsheet() {
    });
    setColumnHeaders(newHeaders);
    setData(newData);
+   setColumnWidths(newWidths); // <-- add this
   } catch (err) {
    console.log(err, "RRRRRR");
   }
@@ -370,7 +373,7 @@ export default function Spreadsheet() {
 
  return (
   <>
-   <div className="p-6 relative">
+   <div className="px-5 mt-5 relative">
     <div className="mb-1 flex justify-between ">
      <h1 className="text-3xl font-bold text-gray-800 capitalize inline-block pb-2 border-b-2 border-blue-500">
       {spreadsheetName}
@@ -553,222 +556,236 @@ export default function Spreadsheet() {
          <tbody>
           {data.map((row, rowIndex) => (
            <SortableRow key={rowIndex} id={rowIndex.toString()}>
-            <td
-             className="border border-gray-300 px-3 py-2 text-center font-medium bg-gray-50"
-             style={{
-               position: "sticky",
-               left: 0,
-               zIndex: 20,
-               background: "#f3f4f6",
-               width: 40,
-               minWidth: 40,
-             }}
-            >
-             <span style={{ cursor: "grab" }}>⠿</span> {rowIndex + 1}
-            </td>
-            {row.map((cell, colIndex) => {
-             const colName = columnHeaders[colIndex];
-             const isEditing =
-              editingCell &&
-              editingCell.row === rowIndex &&
-              editingCell.col === colIndex;
-             const isDropdown = dropdownColumns[colName];
-             const cellWidth = columnWidths[colIndex] || DEFAULT_WIDTH;
-
-             if (isEditing) {
-              return (
-               <td
-                key={colIndex}
-                className="border border-gray-300 px-3 py-2 relative group"
-                style={{ width: cellWidth, minWidth: 60, maxWidth: cellWidth }}
-               >
-                <div
-                 onClick={() => {
-                  if (clickTimerRef.current) {
-                   clearTimeout(clickTimerRef.current);
-                   clickTimerRef.current = null;
-                  }
-                  if (preventSingleClickRef.current) {
-                   preventSingleClickRef.current = false;
-                   return;
-                  }
-                  clickTimerRef.current = setTimeout(() => {
-                   handleCellClickWithScroll(rowIndex, colIndex);
-                   clickTimerRef.current = null;
-                  }, 200);
-                 }}
-                 onDoubleClick={() => {
-                  if (clickTimerRef.current) {
-                   clearTimeout(clickTimerRef.current);
-                   clickTimerRef.current = null;
-                  }
-                  preventSingleClickRef.current = true;
-                  if (
-                   !(
-                    editingCell?.row === rowIndex &&
-                    editingCell?.col === colIndex
-                   ) &&
-                   typeof cell === "string" &&
-                   /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
-                    cell.trim()
-                   )
-                  ) {
-                   let url = cell.trim();
-                   if (!/^https?:\/\//.test(url)) {
-                    url = "https://" + url;
-                   }
-                   window.open(url, "_blank", "noopener,noreferrer");
-                  }
-                 }}
-                 className={`min-h-[20px] ${
-                  hasUpdateRow
-                   ? "cursor-pointer hover:bg-gray-100"
-                   : "cursor-not-allowed opacity-75"
-                 }`}
+            {({ attributes, listeners }: any) => (
+              <>
+                <td
+                  className="border border-gray-300 px-3 py-2 text-center font-medium bg-gray-50 group"
+                  style={{
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 20,
+                    background: "#f3f4f6",
+                    width: 40,
+                    minWidth: 40,
+                  }}
                 >
-                 {isDropdown ? (
-                  <select
-                   value={tempValue}
-                   autoFocus
-                   onChange={(e) => setTempValue(e.target.value)}
-                   onBlur={() => saveCell(rowIndex, colIndex)}
-                   onKeyDown={(e) => {
-                    if (e.key === "Escape") {
-                     setEditingCell(null);
-                     setTempValue(data[rowIndex][colIndex]);
-                    }
-                   }}
-                   className="w-full px-2 py-1 border rounded outline-none bg-white"
+                  <span
+                    style={{ cursor: "grab" }}
+                    {...attributes}
+                    {...listeners}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
                   >
-                   <option value="">Select option</option>
-                   {dropdownColumns[colName].map((option) => (
-                    <option key={option} value={option}>
-                     {option}
-                    </option>
-                   ))}
-                  </select>
-                 ) : (
-                  <input
-                   type="text"
-                   value={tempValue}
-                   autoFocus
-                   onChange={(e) => setTempValue(e.target.value)}
-                   onBlur={() => saveCell(rowIndex, colIndex)}
-                   onKeyDown={(e) => {
-                    if (e.key === "Enter") saveCell(rowIndex, colIndex);
-                    if (e.key === "Escape") {
-                     setEditingCell(null);
-                     setTempValue(data[rowIndex][colIndex]);
-                    }
-                   }}
-                   className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
-                  />
-                 )}
-                </div>
-               </td>
-              );
-             }
+                    ⠿
+                  </span> {rowIndex + 1}
+                </td>
+                {row.map((cell, colIndex) => {
+                 const colName = columnHeaders[colIndex];
+                 const isEditing =
+                  editingCell &&
+                  editingCell.row === rowIndex &&
+                  editingCell.col === colIndex;
+                 const isDropdown = dropdownColumns[colName];
+                 const cellWidth = columnWidths[colIndex] || DEFAULT_WIDTH;
 
-             return (
-              <td
-               key={colIndex}
-               className="border border-gray-300 px-3 py-2 relative group"
-               style={{ width: cellWidth, minWidth: 60, maxWidth: cellWidth }}
-              >
-               <button
-                className="absolute ml-3  mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
-                onClick={(e) => {
-                 e.stopPropagation();
-                 setContextMenu({
-                  row: rowIndex,
-                  col: colIndex,
-                  x: deviceType.mobile
-                   ? e.currentTarget.getBoundingClientRect().left - 190
-                   : deviceType.tab
-                   ? e.currentTarget.getBoundingClientRect().left - 360
-                   : e.currentTarget.getBoundingClientRect().left - 430,
-                  y: deviceType.mobile
-                   ? e.currentTarget.getBoundingClientRect().bottom +
-                     window.scrollY -
-                     150
-                   : e.currentTarget.getBoundingClientRect().bottom +
-                     window.scrollY -
-                     165,
-                 });
-                }}
-               >
-                ⋮
-               </button>
+                 if (isEditing) {
+                  return (
+                   <td
+                    key={colIndex}
+                    className="border border-gray-300 px-3 py-2 relative group"
+                    style={{ width: cellWidth, minWidth: 60, maxWidth: cellWidth }}
+                   >
+                    <div
+                     onClick={() => {
+                      if (clickTimerRef.current) {
+                       clearTimeout(clickTimerRef.current);
+                       clickTimerRef.current = null;
+                      }
+                      if (preventSingleClickRef.current) {
+                       preventSingleClickRef.current = false;
+                       return;
+                      }
+                      clickTimerRef.current = setTimeout(() => {
+                       handleCellClickWithScroll(rowIndex, colIndex);
+                       clickTimerRef.current = null;
+                      }, 200);
+                     }}
+                     onDoubleClick={() => {
+                      if (clickTimerRef.current) {
+                       clearTimeout(clickTimerRef.current);
+                       clickTimerRef.current = null;
+                      }
+                      preventSingleClickRef.current = true;
+                      if (
+                       !(
+                        editingCell?.row === rowIndex &&
+                        editingCell?.col === colIndex
+                       ) &&
+                       typeof cell === "string" &&
+                       /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
+                        cell.trim()
+                       )
+                      ) {
+                       let url = cell.trim();
+                       if (!/^https?:\/\//.test(url)) {
+                        url = "https://" + url;
+                       }
+                       window.open(url, "_blank", "noopener,noreferrer");
+                      }
+                     }}
+                     className={`min-h-[20px] ${
+                      hasUpdateRow
+                       ? "cursor-pointer hover:bg-gray-100"
+                       : "cursor-not-allowed opacity-75"
+                     }`}
+                    >
+                     {isDropdown ? (
+                      <select
+                       value={tempValue}
+                       autoFocus
+                       onChange={(e) => {
+                        setTempValue(e.target.value);
+                        saveCell(rowIndex, colIndex, e.target.value); // Pass new value
+                       }}
+                       onBlur={(e) => saveCell(rowIndex, colIndex, e.target.value)}
+                       onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                         setEditingCell(null);
+                         setTempValue(data[rowIndex][colIndex]);
+                        }
+                       }}
+                       className="w-full px-2 py-1 border rounded outline-none bg-white"
+                      >
+                       <option value="">Select option</option>
+                       {dropdownColumns[colName].map((option) => (
+                        <option key={option} value={option}>
+                         {option}
+                        </option>
+                       ))}
+                      </select>
+                     ) : (
+                      <input
+                       type="text"
+                       value={tempValue}
+                       autoFocus
+                       onChange={(e) => setTempValue(e.target.value)}
+                       onBlur={() => saveCell(rowIndex, colIndex, tempValue)}
+                       onKeyDown={(e) => {
+                        if (e.key === "Enter") saveCell(rowIndex, colIndex, tempValue);
+                        if (e.key === "Escape") {
+                         setEditingCell(null);
+                         setTempValue(data[rowIndex][colIndex]);
+                        }
+                       }}
+                       className="w-full border-red-500 mr-10 px-2 py-1 border rounded outline-none"
+                      />
+                     )}
+                    </div>
+                   </td>
+                  );
+                 }
 
-               <div
-                onClick={() => {
-                 if (clickTimerRef.current) {
-                  clearTimeout(clickTimerRef.current);
-                  clickTimerRef.current = null;
-                 }
-                 if (preventSingleClickRef.current) {
-                  preventSingleClickRef.current = false;
-                  return;
-                 }
-                 clickTimerRef.current = setTimeout(() => {
-                  handleCellClickWithScroll(rowIndex, colIndex);
-                  clickTimerRef.current = null;
-                 }, 200);
-                }}
-                onDoubleClick={() => {
-                 if (clickTimerRef.current) {
-                  clearTimeout(clickTimerRef.current);
-                  clickTimerRef.current = null;
-                 }
-                 preventSingleClickRef.current = true;
-                 if (
-                  !(
-                   editingCell?.row === rowIndex && editingCell?.col === colIndex
-                  ) &&
-                  typeof cell === "string" &&
-                  /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
-                   cell.trim()
-                  )
-                 ) {
-                  let url = cell.trim();
-                  if (!/^https?:\/\//.test(url)) {
-                   url = "https://" + url;
-                  }
-                  window.open(url, "_blank", "noopener,noreferrer");
-                 }
-                }}
-                className={`min-h-[20px] border mr-4 ${
-                 hasUpdateRow
-                  ? "cursor-pointer hover:bg-gray-100"
-                  : "cursor-not-allowed opacity-75"
-                }`}
-               >
-                {typeof cell === "string" &&
-                /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
-                 cell.trim()
-                ) ? (
-                 <span
-                  className="text-blue-600 underline cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap block w-full"
-                  style={{ maxWidth: '100%' }}
-                  title="Double-click to open link"
-                 >
-                  {cell}
-                 </span>
-                ) : (
-                 <span
-                  className={
-                   (cell ? `px-2 py-1  text-xs font-medium ` : "") +
-                   "overflow-hidden text-ellipsis whitespace-nowrap block w-full"
-                  }
-                  style={{ maxWidth: '100%' }}
-                 >
-                  {cell || "-"}
-                 </span>
-                )}
-               </div>
-              </td>
-             );
-            })}
+                 return (
+                  <td
+                   key={colIndex}
+                   className="border border-gray-300 px-3 py-2 relative group"
+                   style={{ width: cellWidth, minWidth: 60, maxWidth: cellWidth }}
+                  >
+                   <button
+                    className="absolute ml-3  mb-4 hover:border py-0  rounded w-5  right-1 hidden group-hover:inline-block text-gray-900 hover:text-gray-800 text-xl"
+                    onClick={(e) => {
+                     e.stopPropagation();
+                     setContextMenu({
+                      row: rowIndex,
+                      col: colIndex,
+                      x: deviceType.mobile
+                       ? e.currentTarget.getBoundingClientRect().left - 190
+                       : deviceType.tab
+                       ? e.currentTarget.getBoundingClientRect().left - 360
+                       : e.currentTarget.getBoundingClientRect().left - 430,
+                      y: deviceType.mobile
+                       ? e.currentTarget.getBoundingClientRect().bottom +
+                         window.scrollY -
+                         150
+                       : e.currentTarget.getBoundingClientRect().bottom +
+                         window.scrollY -
+                         165,
+                     });
+                    }}
+                   >
+                    ⋮
+                   </button>
+
+                   <div
+                    onClick={() => {
+                     if (clickTimerRef.current) {
+                      clearTimeout(clickTimerRef.current);
+                      clickTimerRef.current = null;
+                     }
+                     if (preventSingleClickRef.current) {
+                      preventSingleClickRef.current = false;
+                      return;
+                     }
+                     clickTimerRef.current = setTimeout(() => {
+                      handleCellClickWithScroll(rowIndex, colIndex);
+                      clickTimerRef.current = null;
+                     }, 200);
+                    }}
+                    onDoubleClick={() => {
+                     if (clickTimerRef.current) {
+                      clearTimeout(clickTimerRef.current);
+                      clickTimerRef.current = null;
+                     }
+                     preventSingleClickRef.current = true;
+                     if (
+                      !(
+                       editingCell?.row === rowIndex && editingCell?.col === colIndex
+                      ) &&
+                      typeof cell === "string" &&
+                      /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
+                       cell.trim()
+                      )
+                     ) {
+                      let url = cell.trim();
+                      if (!/^https?:\/\//.test(url)) {
+                       url = "https://" + url;
+                      }
+                      window.open(url, "_blank", "noopener,noreferrer");
+                     }
+                    }}
+                    className={`min-h-[20px] border mr-4 ${
+                     hasUpdateRow
+                      ? "cursor-pointer hover:bg-gray-100"
+                      : "cursor-not-allowed opacity-75"
+                    }`}
+                   >
+                    {typeof cell === "string" &&
+                    /^(https?:\/\/|www\.)[\w\-]+(\.[\w\-]+)+[/#?]?.*$/.test(
+                     cell.trim()
+                    ) ? (
+                     <span
+                      className="text-blue-600 underline cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap block w-full"
+                      style={{ maxWidth: '100%' }}
+                      title="Double-click to open link"
+                     >
+                      {cell}
+                     </span>
+                    ) : (
+                     <span
+                      className={
+                       (cell ? `px-2 py-1  text-xs font-medium ` : "") +
+                       "overflow-hidden text-ellipsis whitespace-nowrap block w-full"
+                      }
+                      style={{ maxWidth: '100%' }}
+                     >
+                      {cell || "-"}
+                     </span>
+                    )}
+                   </div>
+                  </td>
+                 );
+                })}
+              </>
+            )}
            </SortableRow>
           ))}
          </tbody>
