@@ -369,6 +369,29 @@ export default function Spreadsheet() {
    setIsResizing(true);
  }
 
+  // Wrap handleColumnOperation to also update columnWidths
+  const handleColumnOperationWithWidths = async (
+    operation: "add" | "update" | "delete" | "move",
+    params: { index?: number; newName?: string; sourceIndex?: number; targetIndex?: number }
+  ) => {
+    if (operation === "add" && typeof params.index === "number") {
+      // Insert default width at the new column index
+      setColumnWidths((prev) => {
+        const newWidths = [...prev];
+        newWidths.splice(params.index!, 0, DEFAULT_WIDTH);
+        return newWidths;
+      });
+    } else if (operation === "delete" && typeof params.index === "number") {
+      // Remove the width at the deleted column index
+      setColumnWidths((prev) => {
+        const newWidths = [...prev];
+        newWidths.splice(params.index!, 1);
+        return newWidths;
+      });
+    }
+    // Call the original operation
+    await handleColumnOperation(operation, params);
+  };
 
 
  return (
@@ -801,7 +824,7 @@ export default function Spreadsheet() {
       //@ts-ignore
       handleRowOperation={handleRowOperation}
       //@ts-ignore
-      handleColumnOperation={handleColumnOperation}
+      handleColumnOperation={handleColumnOperationWithWidths}
       columnHeaders={columnHeaders}
       getColumnLabel={getColumnLabel}
       hasAddColumn={hasAddColumn}
