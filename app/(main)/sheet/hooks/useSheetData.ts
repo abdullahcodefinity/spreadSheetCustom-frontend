@@ -137,6 +137,8 @@ export const useSheetData = (sheetId: string | undefined) => {
    (a, b) => a.position - b.position
   );
 
+
+
   // Convert sheetData to rows
   sortedSheetData.forEach((item) => {
    // Ensure each row has the same length as headers
@@ -147,6 +149,7 @@ export const useSheetData = (sheetId: string | undefined) => {
    rows.push(row);
   });
 
+  
   // If no data, create empty rows with "-"
   if (rows.length === 0) {
    rows.push(Array(headers.length).fill("-"));
@@ -579,8 +582,18 @@ export const useSheetData = (sheetId: string | undefined) => {
   setTempValue(data[row][col] || "");
  };
 
- // Change saveCell to accept value
+ // Change saveCell to accept value and check if it changed
 const saveCell = async (row: number, col: number, value: string) => {
+  // Get the original value from the data
+  const originalValue = data[row][col] || "";
+  
+  // Only proceed if the value has actually changed
+  if (originalValue === value) {
+    // No change, just close the editing state
+    setEditingCell(null);
+    return;
+  }
+  
   try {
     await handleCellEdit(row, col, value);
     setEditingCell(null);
@@ -599,13 +612,23 @@ const saveCell = async (row: number, col: number, value: string) => {
  };
 
  const saveHeader = async (colIndex: number) => {
-  try {
-   await handleHeaderEdit(colIndex, tempHeader);
-   setEditingHeader(null);
-  } catch (err) {
-   errorToast("Failed to update header");
+  // Get the original header value
+  const originalHeader = columnHeaders[colIndex];
+  
+  // Only proceed if the header has actually changed
+  if (originalHeader === tempHeader) {
+    // No change, just close the editing state
+    setEditingHeader(null);
+    return;
   }
- };
+  
+  try {
+    await handleHeaderEdit(colIndex, tempHeader);
+    setEditingHeader(null);
+  } catch (err) {
+    errorToast("Failed to update header");
+  }
+};
 
  const handleAttachDropDown = (
   columnName: string,
