@@ -1,6 +1,3 @@
-
-
-
 import Header from "@/app/components/Header";
 import Sidebar from "@/app/components/Sidebar";
 import type { Metadata } from "next";
@@ -29,14 +26,11 @@ export default function RootLayout({
 }>) {
   return (
     <AuthGuard requireAuth={true} redirectTo="/login">
-
-
       <Header />
       <Sidebar />
-      <main className=" min-h-screen  bg-gray-50 md:ml-64 transition-all">
-        <div className="p-4 sm:p-6">{children}</div>
+      <main className="h-full md:ml-[130px]  transition-all mt-[60px]">
+        <div className="px-4 sm:pl-6 sm:pr-[18px]">{children}</div>
       </main>
-
     </AuthGuard>
   );
 }

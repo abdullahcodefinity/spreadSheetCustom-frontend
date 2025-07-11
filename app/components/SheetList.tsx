@@ -56,7 +56,7 @@ export default function SheetList() {
  }
 
  return (
-  <div className="pt-12 px-6">
+  <div className="pt-12 px-14 ">
    <div className="flex justify-between items-center mb-4">
     <h1 className="text-xl font-bold">Sheets</h1>
     {!isAddingNew && currentUser.role === "SuperAdmin" && (

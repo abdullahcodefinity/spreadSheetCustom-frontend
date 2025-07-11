@@ -10,7 +10,7 @@ export default function SheetPage() {
  const { data } = useSheetData(sheetId as string);
 
  return (
-  <div className="p-4">
+  <div className="">
    {!data ? (
      <div className="flex items-center justify-center min-h-[80vh]">
        <div className="text-center">

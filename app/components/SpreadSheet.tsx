@@ -396,7 +396,7 @@ export default function Spreadsheet() {
 
  return (
   <>
-   <div className="px-5 mt-5 relative">
+   <div className="pl-5 mt-5 relative">
     <div className="mb-1 flex justify-between ">
      <h1 className="text-3xl font-bold text-gray-800 capitalize inline-block pb-2 border-b-2 border-blue-500">
       {spreadsheetName}
@@ -473,9 +473,9 @@ export default function Spreadsheet() {
      users={users}
      onShare={handleShare}
     />
-    <div className="overflow-auto" ref={tableContainerRef} style={{ maxHeight: "70vh" }}>
+    <div className="overflow-auto  rounded-md " ref={tableContainerRef} style={{ height: 'calc(100vh - 190px)' }}>
       
-      <table className="border border-gray-300 text-sm text-left table-fixed" style={{ minWidth: 'max-content' }}>
+      <table className="border rounded-lg border-gray-300 text-sm text-left table-fixed" style={{ minWidth: 'max-content' }}>
        <DndContext
         sensors={useSensors(
          useSensor(PointerSensor, {

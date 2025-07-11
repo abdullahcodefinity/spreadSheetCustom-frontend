@@ -49,7 +49,7 @@ export default function UserList() {
  console.log(sheetModal?.selectedUser,'KKKKKK')
 
  return (
-  <div className="min-h-screen mt-3 bg-gray-50 py-8">
+  <div className="min-h-screen mt-3  py-8">
    <DeleteModal
     isShow={deleteModal.isShow}
     setIsShow={(show) => setDeleteModal((prev) => ({ ...prev, isShow: show }))}
@@ -64,7 +64,7 @@ export default function UserList() {
     userData={sheetModal?.selectedUser?.sheets || []}
     handleRemoveAccess={handleRemoveAccess}
    />
-   <div className="max-w-7xl mx-auto px-4">
+   <div className="max-w-7xl  mx-auto pl-5">
     <div className="bg-white rounded-lg shadow-md p-6">
      <div className="flex justify-between items-center mb-6">
       <h1 className="text-2xl font-bold text-gray-900">Users</h1>
