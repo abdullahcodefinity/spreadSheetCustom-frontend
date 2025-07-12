@@ -4,11 +4,25 @@ export interface KeyValue {
     values: string[];
 }
 
+// Type for cell values that can be strings or objects
+export type CellValue = string | {
+  type?: string;
+  fileUrl?: string;
+  name?: string;
+  [key: string]: any;
+};
+
 export interface BackendSpreadsheetData {
   columns: string[];
+  columnsMeta?: {
+    [columnName: string]: {
+      fileType?: string;
+      type?: string;
+    };
+  };
   sheetData: {
     position: number;
-    row: string[];
+    row: CellValue[];
   }[];
 }
 
@@ -17,7 +31,7 @@ export interface SheetData {
   id: number;
   spreadsheetId: number;
   position: number;
-  row: string[];
+  row: CellValue[];
   createdAt: string;
   updatedAt: string;
 }
@@ -46,10 +60,17 @@ export interface Sheet {
   id: number;
   name: string;
   columns: string[];
+  columnsMeta?: {
+    [columnName: string]: {
+      fileType?: string;
+      type?: string;
+    };
+  };
   createdAt: string;
   updatedAt: string;
   sheetData: SheetData[];
   userSheets: UserSheet[];
+  columnDropdowns?: any[];
 }
 
 export interface KeyValueCardProps {
@@ -310,7 +331,7 @@ export type BackendSheetData = {
   id: number;
   spreadsheetId: number;
   position: number;
-  row: string[];  // Changed from data object to row array
+  row: CellValue[];  // Changed from data object to row array
   createdAt: string;
   updatedAt: string;
 };

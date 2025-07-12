@@ -9,7 +9,7 @@ import { Url } from "@/src/api";
 import useUpdateData from "@/app/hooks/ useUpdateData";
 import useFetchData from "@/app/hooks/useFetchData";
 
-import { BackendSpreadsheetData, ContextMenuTarget } from "@/app/types";
+import { BackendSpreadsheetData, ContextMenuTarget, CellValue } from "@/app/types";
 
 // Add this type for dropdown columns
 type ColumnDropdownMap = {
@@ -22,7 +22,7 @@ export const useSheetData = (sheetId: string | undefined) => {
  const router = useRouter();
 
  // State
- const [data, setData] = useState<string[][]>([]);
+ const [data, setData] = useState<CellValue[][]>([]);
  const [columnHeaders, setColumnHeaders] = useState<string[]>([]);
  const [spreadsheetName, setSpreadsheetName] = useState<string>("");
  const [isLoading, setIsLoading] = useState(false);
@@ -33,15 +33,23 @@ export const useSheetData = (sheetId: string | undefined) => {
   row: number;
   col: number;
  } | null>(null);
- const [tempValue, setTempValue] = useState("");
+ const [tempValue, setTempValue] = useState<string>("");
  const [editingHeader, setEditingHeader] = useState<number | null>(null);
  const [tempHeader, setTempHeader] = useState("");
 
  const [contextMenu, setContextMenu] = useState<ContextMenuTarget | null>(null);
  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
  const [selectedUser, setSelectedUser] = useState<number | null>(null);
+  const [imageModal, setImageModal] = useState<{
+  rowIndex: number;
+  colIndex: number;
+ } | null>(null);
+
 
  const [dropdownColumns, setDropdownColumns] = useState<ColumnDropdownMap>({});
+ const [columnTypes, setColumnTypes] = useState<{
+  [columnName: string]: string;
+ }>({});
 
  const [pendingScrollRestore, setPendingScrollRestore] = useState(false);
  const lastScrollTop = useRef(0);
@@ -57,13 +65,20 @@ export const useSheetData = (sheetId: string | undefined) => {
   formData: false,
   isNavigate: false,
  });
+ const { mutate: FileMutate ,refresh} = usePostData({
+  URL: Url.uploadFile(Number(sheetId)),
+  mode: "post",
+  link: "",
+  formData: true,
+  isNavigate: false,
+ });
 
- const { mutate: updateRow ,refetchData} = useUpdateData({
+ const { mutate: updateRow, refetchData } = useUpdateData({
   URL: Url.updateRow(Number(sheetId), rowIndex),
   link: "",
   formData: false,
-  autoRefetch:false,
-  skipNavigation:true
+  autoRefetch: false,
+  skipNavigation: true,
  });
 
  const {
@@ -109,6 +124,13 @@ export const useSheetData = (sheetId: string | undefined) => {
   formData: false,
  });
 
+ const { mutate: attachFile, refreshUpdate: FileUpdate } = useUpdateData({
+  URL: Url.attachFileType(Number(sheetId)),
+  link: "",
+  isUpdate: false,
+  formData: false,
+ });
+
  const { mutate: removeDropDown, refreshUpdate: DropRemoveUpdate } =
   useUpdateData({
    URL: Url.removeValueDropdown(Number(sheetId)),
@@ -130,14 +152,12 @@ export const useSheetData = (sheetId: string | undefined) => {
   backendData: BackendSpreadsheetData & { columnDropdowns?: any[] }
  ) => {
   const headers = backendData.columns;
-  const rows: string[][] = [];
+  const rows: CellValue[][] = [];
 
   // Sort sheetData by position to maintain correct order
   const sortedSheetData = [...backendData.sheetData].sort(
    (a, b) => a.position - b.position
   );
-
-
 
   // Convert sheetData to rows
   sortedSheetData.forEach((item) => {
@@ -149,7 +169,6 @@ export const useSheetData = (sheetId: string | undefined) => {
    rows.push(row);
   });
 
-  
   // If no data, create empty rows with "-"
   if (rows.length === 0) {
    rows.push(Array(headers.length).fill("-"));
@@ -162,8 +181,11 @@ export const useSheetData = (sheetId: string | undefined) => {
    }
   });
 
-  // Extract dropdown columns
+  // Extract dropdown columns and column types from columnsMeta
   const dropdownMap: ColumnDropdownMap = {};
+  const columnTypes: { [columnName: string]: string } = {};
+
+  // Handle columnDropdowns (legacy format)
   if (backendData.columnDropdowns) {
    backendData.columnDropdowns.forEach((dropdown) => {
     if (dropdown.columnName && dropdown.valueSet?.values) {
@@ -172,13 +194,28 @@ export const useSheetData = (sheetId: string | undefined) => {
    });
   }
 
-  return { headers, rows, dropdownMap };
+  // Handle columnsMeta (new format)
+  if (backendData.columnsMeta) {
+   Object.entries(backendData.columnsMeta).forEach(([columnName, meta]) => {
+    if (meta.fileType === "file" || meta.type === "file") {
+     columnTypes[columnName] = "file";
+    } else if (meta.type === "select" || meta.fileType === "select") {
+     columnTypes[columnName] = "select";
+     // If this column has dropdown values, add them to dropdownMap
+     if (dropdownMap[columnName]) {
+      // Already handled by columnDropdowns
+     }
+    }
+   });
+  }
+
+  return { headers, rows, dropdownMap, columnTypes };
  };
 
  // Fetch initial sheet data
- const { data: sheetData, isLoading: isSheetLoading} = useFetchData({
+ const { data: sheetData, isLoading: isSheetLoading, } = useFetchData({
   URL: Url.getSheet(Number(sheetId)),
-  key: ["sheet", DropUpdate, DropRemoveUpdate],
+  key: ["sheet", DropUpdate, DropRemoveUpdate, FileUpdate,refresh],
   enabled: !!sheetId,
  });
 
@@ -189,16 +226,19 @@ export const useSheetData = (sheetId: string | undefined) => {
   enabled: !!sheetId,
  });
 
-
-
  useEffect(() => {
   if (sheetData) {
-   const { headers, rows, dropdownMap } =
-    convertBackendDataToSpreadsheet(sheetData);
+   const {
+    headers,
+    rows,
+    dropdownMap,
+    columnTypes: types,
+   } = convertBackendDataToSpreadsheet(sheetData);
    setData(rows);
    setColumnHeaders(headers);
    setSpreadsheetName(sheetData.name);
-   setDropdownColumns(dropdownMap); // <-- set dropdown columns
+   setDropdownColumns(dropdownMap);
+   setColumnTypes(types);
   }
  }, [sheetData]);
 
@@ -242,8 +282,7 @@ export const useSheetData = (sheetId: string | undefined) => {
 
   // Find the userSheet for the current user
   const userSheet = sheetData?.userSheets?.find(
-   (us: any) =>
-    (us.user?.id === currentUser.id || us.userId === currentUser.id)
+   (us: any) => us.user?.id === currentUser.id || us.userId === currentUser.id
   );
 
   const isOwner = userSheet?.role?.toLowerCase() === "owner";
@@ -364,21 +403,24 @@ export const useSheetData = (sheetId: string | undefined) => {
   const perms = checkPermissions(sheetData);
 
   // SuperAdmin can do anything
-  if (currentUser?.role !=='SuperAdmin') {
-    if (operation === "add" && !perms.hasAddColumn) {
-     errorToast("You do not have permission to add columns");
-     return;
-    }
+  if (currentUser?.role !== "SuperAdmin") {
+   if (operation === "add" && !perms.hasAddColumn) {
+    errorToast("You do not have permission to add columns");
+    return;
+   }
 
-    if (operation === "update" || operation === "move" && !perms.hasUpdateColumn) {
-     errorToast("You do not have permission to update columns");
-     return;
-    }
+   if (
+    operation === "update" ||
+    (operation === "move" && !perms.hasUpdateColumn)
+   ) {
+    errorToast("You do not have permission to update columns");
+    return;
+   }
 
-    if (operation === "delete" && !perms.hasDeleteColumn) {
-     errorToast("You do not have permission to delete columns");
-     return;
-    }
+   if (operation === "delete" && !perms.hasDeleteColumn) {
+    errorToast("You do not have permission to delete columns");
+    return;
+   }
   }
 
   try {
@@ -515,7 +557,6 @@ export const useSheetData = (sheetId: string | undefined) => {
   try {
    // Call handleColumnOperation without await since it uses mutation callbacks
    handleColumnOperation("update", { index, newName });
-   
   } catch (err) {
    errorToast("Failed to update header");
   } finally {
@@ -528,8 +569,6 @@ export const useSheetData = (sheetId: string | undefined) => {
   users: { userId: number; role: string }[];
   permissions: string[];
  }) => {
-
-
   setIsLoading(true);
   try {
    updateSheet(payload, {
@@ -563,7 +602,6 @@ export const useSheetData = (sheetId: string | undefined) => {
   link.click();
  };
 
-
  const getColumnLabel = (index: number): string => {
   let label = "";
   while (index >= 0) {
@@ -579,28 +617,38 @@ export const useSheetData = (sheetId: string | undefined) => {
    return;
   }
   setEditingCell({ row, col });
-  setTempValue(data[row][col] || "");
+  const cellValue = data[row][col];
+  // Convert CellValue to string for editing
+  const stringValue = typeof cellValue === 'string' ? cellValue : 
+                     (typeof cellValue === 'object' && cellValue ? 
+                      (cellValue.fileUrl || cellValue.type || JSON.stringify(cellValue)) : '');
+  setTempValue(stringValue || "");
  };
 
  // Change saveCell to accept value and check if it changed
-const saveCell = async (row: number, col: number, value: string) => {
+ const saveCell = async (row: number, col: number, value: string) => {
   // Get the original value from the data
   const originalValue = data[row][col] || "";
-  
+
+  // Convert original value to string for comparison
+  const originalString = typeof originalValue === 'string' ? originalValue : 
+                        (typeof originalValue === 'object' && originalValue ? 
+                         (originalValue.fileUrl || originalValue.type || JSON.stringify(originalValue)) : '');
+
   // Only proceed if the value has actually changed
-  if (originalValue === value) {
-    // No change, just close the editing state
-    setEditingCell(null);
-    return;
+  if (originalString === value) {
+   // No change, just close the editing state
+   setEditingCell(null);
+   return;
   }
-  
+
   try {
-    await handleCellEdit(row, col, value);
-    setEditingCell(null);
+   await handleCellEdit(row, col, value);
+   setEditingCell(null);
   } catch (err) {
-    errorToast("Failed to update cell");
+   errorToast("Failed to update cell");
   }
-};
+ };
 
  const handleHeaderClick = (colIndex: number) => {
   if (!checkPermissions(sheetData).hasUpdateColumn) {
@@ -614,31 +662,62 @@ const saveCell = async (row: number, col: number, value: string) => {
  const saveHeader = async (colIndex: number) => {
   // Get the original header value
   const originalHeader = columnHeaders[colIndex];
-  
+
   // Only proceed if the header has actually changed
   if (originalHeader === tempHeader) {
-    // No change, just close the editing state
-    setEditingHeader(null);
-    return;
+   // No change, just close the editing state
+   setEditingHeader(null);
+   return;
   }
-  
+
   try {
-    await handleHeaderEdit(colIndex, tempHeader);
-    setEditingHeader(null);
+   await handleHeaderEdit(colIndex, tempHeader);
+   setEditingHeader(null);
   } catch (err) {
-    errorToast("Failed to update header");
+   errorToast("Failed to update header");
   }
-};
+ };
 
  const handleAttachDropDown = (
   columnName: string,
   ValueID?: number,
   operation?: "attach" | "remove"
  ) => {
-  if (operation === "attach")
-   attachDropDown({ valueSetId: ValueID, columnName });
-  else if (operation === "remove") {
-   removeDropDown({ columnName });
+  if (operation === "attach") {
+   attachDropDown(
+    { valueSetId: ValueID, columnName },
+    {
+     onSuccess: () => {
+      // Update local columnTypes state
+      setColumnTypes((prev) => ({
+       ...prev,
+       [columnName]: "select",
+      }));
+      successToast("Dropdown attached successfully");
+     },
+     onError: () => {
+      errorToast("Failed to attach dropdown");
+     },
+    }
+   );
+  } else if (operation === "remove") {
+   removeDropDown(
+    { columnName },
+    {
+     onSuccess: () => {
+      // Remove from local columnTypes state
+      setColumnTypes((prev) => {
+       const newTypes = { ...prev };
+       delete newTypes[columnName];
+       return newTypes;
+      });
+      successToast("Dropdown removed successfully");
+     },
+     onError: () => {
+      errorToast("Failed to remove dropdown");
+     },
+    }
+   );
   }
  };
 
@@ -650,8 +729,77 @@ const saveCell = async (row: number, col: number, value: string) => {
   setPendingScrollRestore(true);
  };
 
+ const handleAttachFile = (
+  columnName: string,
+  operation?: "attach" | "remove"
+ ) => {
+  if (operation === "attach") {
+   attachFile(
+    { columnName, fileType: "file", action: operation },
+    {
+     onSuccess: () => {
+      // Update local columnTypes state
+      setColumnTypes((prev) => ({
+       ...prev,
+       [columnName]: "file",
+      }));
+      successToast("File type attached successfully");
+     },
+     onError: () => {
+      errorToast("Failed to attach file type");
+     },
+    }
+   );
+  } else if (operation === "remove") {
+   attachFile(
+    { columnName, action: operation },
+    {
+     onSuccess: () => {
+      // Remove from local columnTypes state
+      setColumnTypes((prev) => {
+       const newTypes = { ...prev };
+       delete newTypes[columnName];
+       return newTypes;
+      });
+      successToast("File type removed successfully");
+     },
+     onError: () => {
+      errorToast("Failed to remove file type");
+     },
+    }
+   );
+  }
+ };
+
+ const handleImageUpload = async (file: File, type: string) => {
+  if (!imageModal) return;
+  
+  try {
+   const formData = new FormData();
+   formData.append('columnIndex', imageModal.colIndex.toString());
+   formData.append('file', file);
+   formData.append('fileType', type);
+   formData.append('position', imageModal.rowIndex.toString());
+
+   FileMutate(formData, {
+    onSuccess: () => {
+     successToast('File uploaded successfully');
+     setImageModal(null);
+    },
+    onError: () => {
+     errorToast('Failed to upload file');
+    }
+   });
+  } catch (error) {
+   console.error('Error uploading file:', error);
+   errorToast('Failed to upload file');
+  }
+ };
 
 
+
+
+ 
  return {
   // State
   data,
@@ -666,9 +814,12 @@ const saveCell = async (row: number, col: number, value: string) => {
   tempHeader,
   valueSets,
   dropdownColumns,
+  columnTypes,
   contextMenu,
   isShareModalOpen,
   selectedUser,
+  imageModal,
+  setImageModal,
   setEditingHeader,
   setTempHeader,
   setEditingCell,
@@ -679,7 +830,8 @@ const saveCell = async (row: number, col: number, value: string) => {
   setColumnHeaders,
   setData,
   refetchData,
-
+  handleAttachFile,
+  handleImageUpload,
   // Permission flags (granular)
   hasAddColumn: checkPermissions(sheetData).hasAddColumn,
   hasDeleteColumn: checkPermissions(sheetData).hasDeleteColumn,

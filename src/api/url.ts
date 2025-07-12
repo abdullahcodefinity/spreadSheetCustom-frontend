@@ -9,7 +9,8 @@ const Url = {
   getSheet: (id: number) => `/sheets/${id}`,
   updateSheetPermission: (id: number) => `/sheets/${id}/permissions`,
   removeSheetAccess: (id: number) => `/sheets/remove-access/${id}`,
-
+  
+  uploadFile: ( id:number ) => `/sheet-data/${id}/row/upload`,
 
   //Row
   addNewRow: '/sheet-data',
@@ -27,6 +28,10 @@ const Url = {
   deleteValueSet: (id: number) => `value-sets/${id}`,
   getValueSet: (id: number) => `/value-sets/${id}`,
   attachValueDropdown: (id: number,) => `/sheets/${id}/columns/dropdown`,
+  attachFileType: (id: number) => `/sheets/${id}/columns/file-type`,
+
+
+  
   removeValueDropdown: (id: number,) => `/sheets/${id}/columns/dropdown/remove`,
 
   //Users
