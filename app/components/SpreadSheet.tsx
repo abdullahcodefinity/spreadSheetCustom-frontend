@@ -782,7 +782,7 @@ export default function Spreadsheet() {
                       350
                     : e.currentTarget.getBoundingClientRect().bottom +
                       window.scrollY -
-                      125,
+                      210,
                   });
                  }}
                 >
